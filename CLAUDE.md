@@ -87,3 +87,15 @@ Skip Figma when the session was docs-only, backend-only, or made no visual/copy 
 - [ ] Relevant markdown docs reflect the current truth.
 - [ ] Figma ([`vh89uJSaSFIVQ28NETwoD8`](https://www.figma.com/design/vh89uJSaSFIVQ28NETwoD8/Untitled?node-id=0-1)) is in sync with the handoff, or explicitly unchanged this session.
 - [ ] Any intentional PRD ↔ handoff tension is documented in both places.
+
+## Git / PR workflow
+
+- **Branch off `main`.** All work happens on a feature branch; never commit directly to `main`.
+- **Authorship.** Commits are authored **solely by Andrew Vong `<andrewvong426@gmail.com>`**. **No `Co-Authored-By` lines and no AI / Claude attribution** in commit messages or PR bodies.
+- **PR body = exactly three sections, concise:**
+  - `## Summary` — what the PR does and why, in a few lines.
+  - `## Changes Made` — the concrete edits (files / behavior).
+  - `## Verification Test` — how it was verified (tests run, browser checks, build/tsc status).
+- **Review cycle before merge (every PR):** Opus agent review → root-cause investigation of any findings → Opus agent applies fixes → re-verify. Do not merge until this cycle is clean.
+- **Merge style:** **squash** via `gh pr merge --squash --delete-branch`.
+- **Frozen pipeline v1 amendments:** in-place edits to the frozen `pipeline: "v1"` spec are allowed **only pre-launch while zero user edits exist**, and the PR **must update PRD §6.2.1 in the same PR**. **Post-launch, any such change ships as `v2`** (freeze rule, §6.2.1) — never an in-place edit.

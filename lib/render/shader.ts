@@ -8,6 +8,20 @@
  * formula is `c + 0.30*n*(c - blur(c))*wM`, but v1 ships without the blur pass,
  * so `blur(c) == c` and the op is exact identity at any n (no neighborhood read).
  *
+ * Negative-lobe pinning (frozen, §6.2.1; added 2026-06-12 pre-launch): the two
+ * ops that can drive a linear channel BELOW 0 — contrast (op 4, pivot-relative
+ * subtract) and blacks (op 8, additive with negative n) — are each followed by
+ * `c = max(c, 0)`. This is required so the chroma/luma-dependent ops downstream
+ * never see negative channels: vibrance (op 9) divides by `max(mx, 1e-5)`, and
+ * with a negative mx that denominator collapses to 1e-5 while (mx−mn) stays
+ * positive, exploding `sat` to ~1e2–1e5, flipping its mix factor hugely negative,
+ * and inverting color into saturated primaries (red/green/blue speckle in dark
+ * regions). The multiplicative/luma-masked ops (1–3, 5–7) cannot create a
+ * negative from a non-negative input — white balance scales by (1±0.20n) > 0 for
+ * n∈[-1,1] (0.20<1), exposure by exp2(·) > 0, highlights/shadows by
+ * 1+0.5·n·w ≥ 0.5 > 0, whites by 1+0.25n ≥ 0.75 > 0 — so pinning after ops 4 and
+ * 8 ONLY is sufficient. Vibrance also clamps `sat` to [0,1] belt-and-braces.
+ *
  * Every per-op constant, mask curve, pivot, and weight below is transcribed
  * verbatim from §6.2.1's "Frozen per-op formulas" subsection. Changing ANY of
  * them forces pipeline v2 (freeze rule, §6.2.1).
@@ -125,6 +139,9 @@ void main() {
     const float P = 0.18;
     c = (c - P) * (1.0 + n) + P;
   }
+  // Negative-lobe pin (frozen, §6.2.1): contrast can push dark channels < 0.
+  // Pin so ops 5–8's luma masks and op 9's chroma ratio see non-negative input.
+  c = max(c, vec3(0.0));
   // 5. Highlights. wH = smoothstep(0.5,1.0,Y); c *= 1 + 0.5*n*wH.
   {
     float n = u_highlights;
@@ -151,13 +168,18 @@ void main() {
     float wB = clamp(1.0 - Y / 0.25, 0.0, 1.0);
     c += 0.10 * n * wB;
   }
+  // Negative-lobe pin (frozen, §6.2.1): blacks (additive, negative n) can push
+  // dark channels < 0. Pin before op 9's chroma ratio (see header note).
+  c = max(c, vec3(0.0));
   // 9. Vibrance (skin-protected, low-saturation-weighted).
   {
     float n = u_vibrance;
     float Y = dot(c, LUMA);
     float mx = max(c.r, max(c.g, c.b));
     float mn = min(c.r, min(c.g, c.b));
-    float sat = (mx - mn) / max(mx, 1e-5);
+    // sat clamped to [0,1] (frozen, §6.2.1): with the pins above mx ≥ mn ≥ 0 so
+    // sat ≤ 1 already, but the clamp guards the ratio unconditionally.
+    float sat = clamp((mx - mn) / max(mx, 1e-5), 0.0, 1.0);
     float w = 1.0 - sat;
     float hue = hueFromLinearRGB(c);
     float gSkin = 1.0 - 0.5 * exp(-pow((hue - 25.0) / 20.0, 2.0));
