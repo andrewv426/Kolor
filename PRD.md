@@ -132,9 +132,11 @@ Each day's photo is preprocessed **once, server-side** (Phase 0: a manual script
 
 | Variant | Resolution (long edge) | Bit depth | Format / encoder | Consumed by |
 |---|---|---|---|---|
-| **master16** | 2048 px | 16-bit/channel, sRGB-**encoded** | PNG (pinned `oxipng`, no ancillary time/text chunks) | Editor render surface; inspect/detail comparison view |
-| **preview8** | 1024 px | 8-bit/channel | WebP, lossy (pinned `cwebp`, fixed quality) | Gallery tiles; landing hero |
-| **ai768** | 768 px | 8-bit/channel | JPEG, baseline (pinned `mozjpeg`, fixed quality) | Image bytes sent to AI players (§6.7) |
+| **master16** | 2048 px | 16-bit/channel, sRGB-**encoded** | PNG via sharp's bundled libpng/zlib-ng (no ancillary time/text chunks) | Editor render surface; inspect/detail comparison view |
+| **preview8** | 1024 px | 8-bit/channel | WebP, lossy, via sharp's bundled libwebp (fixed quality) | Gallery tiles; landing hero |
+| **ai768** | 768 px | 8-bit/channel | JPEG, progressive (mozjpeg), via sharp's bundled mozjpeg (fixed quality) | Image bytes sent to AI players (§6.7) |
+
+> sharp's mozjpeg path forces **progressive** encoding (`progressive: false` is silently ignored), so ai768 is progressive by construction; `constants.mjs`, the prepare-master README, and the emitted manifest all record it as progressive (and the CLI asserts the encoded SOF marker matches).
 
 `master16` is sRGB-**encoded** (gamma-domain) 16-bit, *not* linear-light 16-bit: the extra bits buy headroom and kill 8-bit banding while keeping the file in the same transfer function the shader already decodes. The `daily_photos` row records the storage paths for all three plus the preprocessing manifest. Storage is ~8–18 MB/day (trivial); egress is solved by serving the one immutable file/day through a free CDN layer (near-100% cache hit, §9); the gallery loads only the small preview8.
 
@@ -236,7 +238,7 @@ srgb8 = quantize8(srgb + d);
 
 The master is produced by a **byte-deterministic** pipeline (Phase 0: manual script; Phase 3+: GitHub Actions). Steps, in order: **JPEG artifact removal + debanding + light denoise** (non-ML pinned `ffmpeg`-filter graph now; an **FBCNN-class ML model is a documented optional upgrade slot for Phase 3** — adopting it changes the master bytes and therefore ships as **v2**) → **bit-depth expansion to the 16-bit master** → **emit the three variants**.
 
-- **Pinned versions, no timestamps.** Exact pinned versions of every tool/model/encoder (`ffmpeg` + filters, `oxipng`, `cwebp`, `mozjpeg`, UPNG.js, optional ML weights hash). Strip all timestamp/EXIF/XMP and tool-version metadata (`tEXt`/`tIME` PNG chunks, JFIF dates) so outputs carry no non-deterministic bytes.
+- **Pinned versions, no timestamps.** Exact pinned versions of every tool/model/encoder: `ffmpeg` + filters, and the **sharp-bundled encoders** — PNG via sharp's bundled libpng/zlib-ng, WebP via sharp's bundled libwebp, JPEG progressive via sharp's bundled mozjpeg (sharp's pinned version fixes all three; their exact bundled-library versions are read at runtime from `sharp.versions` and recorded in the manifest so reproduction/CI has one authoritative encoder identity) — plus UPNG.js and the optional ML weights hash. Strip all timestamp/EXIF/XMP and tool-version metadata (`tEXt`/`tIME` PNG chunks, JFIF dates) so outputs carry no non-deterministic bytes.
 - **Re-run rule:** the **same input bytes + same pinned versions+params ⇒ byte-identical** master16, preview8, and ai768. Anything else is a determinism bug, not acceptable variation; verified in CI by hashing.
 - **Manifest fields** (mirrored into the `daily_photos` row): `pipeline` (`"v1"`), source photo hash, every tool+encoder version, the ordered filter graph + params, optional ML model id+weights-hash (or `null`), the curation-gate threshold + result, and per-variant `{width, height, format, encoder_version, quality, sha256}`.
 
@@ -258,7 +260,7 @@ Replaces any generative highlight infill — **Level 3 is explicitly skipped**. 
 4. The **slider parameter space** (keys, integer `[-100,+100]` ranges) and the **frozen op order**, all in linear light at `highp`.
 5. The **slider→math mapping** for every op (the per-op formulas).
 6. The **output dither** — function family (interleaved gradient noise), its constants, `±0.5/255` amplitude, the `(x,y)`-only purity rule, and the final **`clamp(srgb + d, 0, 1)` + round-half-up `quantize8`** step.
-7. The **preprocessing chain** (ordered filters/params, pinned tool/model/encoder versions, no-timestamp/byte-determinism rules) and the **curation-gate** test + default threshold.
+7. The **preprocessing chain** — the **first-op EXIF auto-rotation** (apply + clear the Orientation tag before anything else, so a tagged JPEG never mints a sideways master; recorded as `preprocessing.exifAutoRotate`), the ordered filters/params, pinned tool/model/encoder versions, no-timestamp/byte-determinism rules — and the **curation-gate** test + default threshold.
 
 **The v2 rule:** **ANY** change to **any** item above — a new encoder, a re-tuned slider curve, a different dither hash, a swapped denoise model, a single constant — ships as a **new `pipeline` version** (`"v2"`, `"v3"`, …). The previous renderer (shader + loader + decode path) is **kept forever** and selected by the `pipeline` field stored on each submission, so historical and shared edits never shift. New versions apply only to photos staged under them; there is **no in-place migration** of stored settings.
 

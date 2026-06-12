@@ -22,6 +22,7 @@ import {
   VARIANTS,
   RESAMPLE_KERNEL,
   ENCODER,
+  EXIF_AUTO_ROTATE,
   FFMPEG_PIX_FMT,
   FFMPEG_FILTER_PARAMS,
   FFMPEG_DETERMINISM_FLAGS,
@@ -44,10 +45,20 @@ const SELF_VERSION = JSON.parse(
 function parseArgs(argv) {
   const args = { input: null, out: null, threshold: DEFAULT_CLIP_THRESHOLD_PCT, force: false };
   const rest = argv.slice(2);
+  // Consume the value token after a value-taking flag, validating it exists and
+  // isn't itself a flag (so `--out` at end of argv, or `--threshold --force`,
+  // fails loudly instead of swallowing the next flag or storing undefined).
+  const takeValue = (flag, i) => {
+    const v = rest[i + 1];
+    if (v === undefined || v.startsWith('--')) {
+      fail(`${flag} requires a value`);
+    }
+    return v;
+  };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
-    if (a === '--out') args.out = rest[++i];
-    else if (a === '--threshold') args.threshold = Number(rest[++i]);
+    if (a === '--out') args.out = takeValue('--out', i++);
+    else if (a === '--threshold') args.threshold = Number(takeValue('--threshold', i++));
     else if (a === '--force') args.force = true;
     else if (a === '-h' || a === '--help') args.help = true;
     else if (a.startsWith('--')) fail(`Unknown flag: ${a}`);
@@ -108,8 +119,9 @@ function resizeOpts(longEdge) {
 }
 
 // --------------------------------------------------------------------------
-// clipping curation gate — measured on the ORIGINAL 8-bit decode.
-// Fraction of pixels with ANY channel == 0 OR == 255.
+// clipping curation gate — measured on the canonically-oriented 8-bit decode
+// (EXIF rotation already baked in). Fraction of pixels with ANY channel == 0
+// OR == 255.
 // --------------------------------------------------------------------------
 async function computeClipStats(inputBuffer) {
   const { data, info } = await sharp(inputBuffer)
@@ -315,8 +327,20 @@ async function main() {
   const inputBuffer = readFileSync(inputPath);
   const inputSha = sha256(inputBuffer);
 
-  // --- curation gate (on the original decode) ---------------------------
-  const clip = await computeClipStats(inputBuffer);
+  // --- canonical orientation (frozen pipeline-v1 behavior) --------------
+  // Apply EXIF Orientation as the FIRST decode operation and bake it into one
+  // physically-oriented buffer that EVERY downstream path consumes (clip stats,
+  // resolution gate, the 16-bit ffmpeg handoff, and thus all three variants).
+  // Argless `.rotate()` rotates pixels per the EXIF tag and clears the tag, so an
+  // orientation-tagged JPEG no longer mints a sideways master. Re-encoding to a
+  // lossless 16-bit PNG keeps the pixels intact for the gate measurement and the
+  // ffmpeg handoff. `EXIF_AUTO_ROTATE` records this as a frozen pipeline param.
+  const orientedBuffer = EXIF_AUTO_ROTATE
+    ? await sharp(inputBuffer).rotate().png({ compressionLevel: 0 }).toBuffer()
+    : inputBuffer;
+
+  // --- curation gate (on the oriented decode) ---------------------------
+  const clip = await computeClipStats(orientedBuffer);
   const gatePassed = clip.clippedCombinedPct <= args.threshold;
 
   process.stderr.write(
@@ -370,7 +394,9 @@ async function main() {
     const ffOutPng = join(work, 'out16.png');
 
     // Lossless 16-bit RGB PNG handoff into ffmpeg (no resize yet; full res in).
-    const decoded16 = await sharp(inputBuffer)
+    // Fed from the orientation-baked buffer so the master inherits the same
+    // canonical orientation the clip stats and resolution gate measured.
+    const decoded16 = await sharp(orientedBuffer)
       .toColourspace('rgb16')
       .png({ compressionLevel: 0, adaptiveFiltering: false, palette: false })
       .toBuffer();
@@ -443,6 +469,9 @@ async function main() {
       ffmpeg: ffmpegVersion(),
     },
     preprocessing: {
+      // EXIF Orientation is applied + cleared as the first decode op (frozen).
+      // It affects output bytes, so it's a recorded pipeline parameter.
+      exifAutoRotate: EXIF_AUTO_ROTATE,
       intermediatePixFmt: FFMPEG_PIX_FMT,
       filterGraph: ffInfo.filter,
       filterParams: FFMPEG_FILTER_PARAMS,

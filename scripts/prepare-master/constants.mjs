@@ -7,6 +7,16 @@
 export const PIPELINE_VERSION = 'v1';
 
 // ---------------------------------------------------------------------------
+// EXIF Orientation handling (frozen). The very first decode op applies the EXIF
+// Orientation tag (via sharp's argless `.rotate()`) and clears it, so an
+// orientation-tagged JPEG mints a correctly-oriented master instead of a
+// sideways one. This baked rotation feeds EVERY downstream path (clip stats,
+// resolution gate, recorded width/height, and all three variants), so it
+// affects output bytes and is part of the v1 freeze + recorded in the manifest.
+// ---------------------------------------------------------------------------
+export const EXIF_AUTO_ROTATE = true;
+
+// ---------------------------------------------------------------------------
 // Frozen variant set (PRD §6.2.1 "Canonical source + the frozen variant set").
 // Resolutions are long-edge in pixels; the short edge scales proportionally.
 // ---------------------------------------------------------------------------
@@ -83,7 +93,9 @@ export const ENCODER = {
 // rgb48le intermediate so debanding has real headroom to work in.
 //
 // Ordered chain:
-//   1. format=rgb48le        — promote to 16-bit/channel linear-RGB samples.
+//   1. format=rgb48le        — promote to 16-bit/channel sRGB-encoded RGB samples
+//                              (gamma domain, matching the master's transfer
+//                              function; format= does not linearize the data).
 //   2. deband                — kill JPEG block/banding artifacts in flat regions.
 //   3. hqdn3d                — light spatial denoise (we feed a single still frame,
 //                              so only the spatial luma/chroma terms apply).

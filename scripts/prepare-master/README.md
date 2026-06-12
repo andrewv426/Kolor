@@ -55,7 +55,13 @@ All parameters live in `constants.mjs`. Changing **any** of them changes the
 master bytes and therefore **must** ship as a new `pipeline` version — never
 edited in place (the v2 rule, `PRD.md` §6.2.1).
 
-1. **Decode** the input JPEG to a lossless 16-bit RGB PNG (sharp → `rgb16`).
+1. **Decode + apply/clear EXIF orientation.** As the *first* decode op, apply the
+   EXIF Orientation tag (sharp's argless `.rotate()`) and clear it, baking one
+   canonically-oriented buffer that every downstream path consumes — so clip
+   stats, the resolution gate, recorded width/height, and all three variants are
+   consistently oriented (an orientation-tagged JPEG never mints a sideways
+   master). Then decode to a lossless 16-bit RGB PNG (sharp → `rgb16`). Recorded
+   as `preprocessing.exifAutoRotate: true` in the manifest (a frozen v1 param).
 2. **ffmpeg artifact removal / deband / light denoise** at 16-bit (`rgb48le`
    intermediate). Ordered filter graph:
    `format=rgb48le, deband(1thr=2thr=3thr=4thr=0.0059, range=16, blur=1, coupling=0), hqdn3d(2:1:2:3), format=rgb48le`.
@@ -171,8 +177,24 @@ jobs:
       - name: Install pinned deps
         working-directory: scripts/prepare-master
         run: npm ci
+      - name: Resolve candidate URL
+        id: candidate
+        # `inputs.input_url` is ONLY populated on the workflow_dispatch trigger;
+        # on the `schedule` trigger it is empty. Scheduled runs must resolve the
+        # next candidate from the curated admin queue via the Phase-3 glue
+        # resolver (PRD §6.8) — otherwise the fetch below would download nothing.
+        run: |
+          URL="${{ github.event.inputs.input_url }}"
+          if [ -z "$URL" ]; then
+            # Scheduled path: ask the curated-admin-queue resolver for the next
+            # candidate to stage (selects + downloads URL from Pexels/admin).
+            URL="$(node scripts/resolve-candidate.mjs)"   # Phase 3 glue, not in this dir
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
       - name: Fetch candidate
-        run: curl -sSL "${{ inputs.input_url }}" -o candidate.jpg
+        # -f makes curl exit non-zero on HTTP errors so a 4xx/5xx error page is
+        # never silently written into candidate.jpg.
+        run: curl -fsSL "${{ steps.candidate.outputs.url }}" -o candidate.jpg
       - name: Prepare canonical master (runs the curation gate)
         working-directory: scripts/prepare-master
         run: node index.mjs "$GITHUB_WORKSPACE/candidate.jpg" --out "$GITHUB_WORKSPACE/staged"
