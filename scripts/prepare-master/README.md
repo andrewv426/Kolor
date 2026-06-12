@@ -12,11 +12,13 @@ freeze (see `PRD.md` §6.2.1).
 
 ## What it produces
 
-For each input it writes an output directory containing exactly four files:
+For each input it writes an output directory containing exactly six files:
 
 | File | Variant | Resolution (long edge) | Bit depth | Format | Consumed by |
 |---|---|---|---|---|---|
-| `master16.png` | **master16** | 2048 px | 16-bit/channel, sRGB-encoded | PNG (libpng/zlib-ng via sharp) | Editor render surface; inspect/detail view |
+| `master16.png` | **master16** | 2048 px | 16-bit/channel, sRGB-encoded | PNG (libpng/zlib-ng via sharp) | **Canonical/archival** artifact; CI determinism; delivery fallback |
+| `master16-hi.webp` | **delivery hi plane** | 2048 px | 8-bit (top byte of each 16-bit sample) | WebP, lossless | Editor web delivery (recombined client-side) |
+| `master16-lo.webp` | **delivery lo plane** | 2048 px | 8-bit (top nibble of low byte, replicated) | WebP, lossless | Editor web delivery (recombined client-side) |
 | `preview8.webp` | **preview8** | 1024 px | 8-bit/channel | WebP, lossy (libwebp via sharp) | Gallery tiles; landing hero |
 | `ai768.jpg` | **ai768** | 768 px | 8-bit/channel | JPEG, progressive (mozjpeg via sharp) | Image bytes sent to AI players |
 | `manifest.json` | — | — | — | JSON | `daily_photos` row mirror; CI determinism check |
@@ -25,21 +27,101 @@ The determinism contract is **per-variant identical bytes** (same input ⇒ same
 output file) and **perceptual equivalence across variants** at their display
 sizes — variants are *not* pixel-identical to each other.
 
+### Two-plane WebP delivery (PRD §6.2.1 amendment 2026-06-12)
+
+`master16.png` stays the **canonical/archival** artifact, but it's 18MB — too big
+to ship to every editor session. For web delivery we split each 16-bit RGB sample
+into two 8-bit **lossless-WebP planes**, derived as a **pure function of the
+master16 PNG bytes** (so they're identical whether emitted by the full pipeline
+or by `--derive-planes`). **SHIPPED encoding = 12-bit:**
+
+```
+hi plane[i] = (v >> 8) & 0xFF                       # top byte
+nib         = (v >> 4) & 0x0F                        # top nibble of the low byte
+lo plane[i] = (nib << 4) | nib                       # replicated to a full byte (0..255)
+
+# client recombination (decode):
+nib = loByte >> 4 ;  v = (hi << 8) | (nib << 4) | nib
+```
+
+The bottom 4 bits are dropped, so the recombined samples equal the **defined
+12-bit quantization** of the master — *not* the raw PNG. The manifest's
+`delivery.recombinesTo` is the sha256 of the 12-bit-quantized RGB16 buffer;
+`node verify-planes.mjs [dir]` decodes both WebPs, recombines, and asserts the
+result hashes to it bit-exactly (the load-bearing equivalence proof — run it in CI).
+
+**Why 12-bit, not full 16-bit two-plane (measured on dev-001):** the 16-bit lo
+plane is the incompressible low byte → `hi+lo` = 66.6% of the PNG (over budget).
+12-bit drops the lo plane to the top nibble → **41.7%** total (`hi 2.93MB +
+lo 4.64MB = 7.57MB` vs the **18.1MB** PNG), with quantization error ≤ 0.058 of an
+8-bit display code (sub-perceptual). The plane WebP params are pinned in
+`constants.mjs` (`PLANE_WEBP = { lossless: true, effort: 6 }`) and are part of the
+v1 freeze. The packing math lives in `planes.mjs` (the single definition shared by
+`index.mjs` and `verify-planes.mjs`).
+
 ## Usage
 
 ```bash
 npm install            # installs pinned sharp + ffmpeg-static (vendored ffmpeg binary)
 
+# full pipeline (candidate JPEG → all six outputs incl. delivery planes):
 node index.mjs <input.jpg> [--out <dir>] [--threshold <pct>] [--force]
+
+# standalone: derive ONLY the delivery planes + a manifest fragment from an
+# EXISTING canonical master16.png (for already-minted photos whose candidate
+# JPEG is gone — the planes are a pure function of the PNG):
+node index.mjs --derive-planes <master16.png> [--out <dir>]
+
+# standalone + merge the derived fragment INTO an existing full manifest
+# (preserves the historical blocks --derive-planes cannot know):
+node index.mjs --derive-planes <master16.png> --merge-into <manifest.json> [--out <dir>]
 ```
 
-- `--out <dir>` — output directory (default `./out-<input-basename>`).
+- `--out <dir>` — output directory (default `./out-<input-basename>`, or
+  `./out-planes-<png-basename>` in `--derive-planes` mode).
 - `--threshold <pct>` — curation-gate clipping threshold percent (default `2`).
 - `--force` — emit variants even if the curation or resolution gate fails
   (records the override in the manifest).
+- `--derive-planes <png>` — standalone mode: writes `master16-hi.webp`,
+  `master16-lo.webp`, and `manifest-delivery.json` (the `delivery` fragment with
+  the source PNG's `master16Sha256`, **plus `encoders.planeWebp`** so the fragment
+  shape matches what the full pipeline records). Does **not** run ffmpeg/the
+  curation gate.
+- `--merge-into <manifest.json>` — only valid with `--derive-planes`. Reads an
+  existing full manifest, overwrites **only** the fields this path is
+  authoritative for (`delivery` + `encoders.planeWebp`), preserves every
+  historical block, and writes the merged `manifest.json` (sorted keys,
+  deterministic). Aborts if the manifest's `variants.master16.sha256` does not
+  match the derived PNG's sha.
 
 Exit codes: `0` success, `2` curation or resolution gate failed (without
 `--force`), `1` any other error.
+
+After either mode, prove plane equivalence with `node verify-planes.mjs [dir]`
+(defaults to `../../public/photo/dev-001`).
+
+### Manifest provenance — which fields come from which path
+
+The two paths produce **one canonical manifest shape**. Both record the same
+`delivery` block and `encoders.planeWebp`. They differ only in which blocks each
+can author from first principles:
+
+| Field / block | Full pipeline (`<input.jpg>`) | `--derive-planes [--merge-into]` |
+|---|---|---|
+| `pipeline`, `resampleKernel` | authored | from `--merge-into` (preserved) |
+| `source`, `curationGate`, `resolutionGate` | authored (real candidate + gates) | **cannot know** → from `--merge-into` (preserved) |
+| `tools`, `preprocessing` | authored (real ffmpeg/sharp run) | **cannot know** → from `--merge-into` (preserved) |
+| `variants` (master16/preview8/ai768) | authored | from `--merge-into` (preserved) |
+| `encoders.png/webp/jpeg` | authored | from `--merge-into` (preserved) |
+| `encoders.planeWebp` | authored (`PLANE_WEBP`) | **authored** (`PLANE_WEBP`) |
+| `delivery` (planes + `recombinesTo`) | authored (from master16 bytes) | **authored** (from master16 bytes) |
+| `delivery.master16Sha256` | — (master16 sha is in `variants`) | **authored** (source PNG sha) |
+
+`dev-001`'s committed manifest was regenerated with
+`--derive-planes … --merge-into …` against its own `master16.png`: the delivery
++ `encoders.planeWebp` fragment is recomputed and merged, the historical blocks
+are carried through verbatim. The planes are byte-identical, so `verify-planes`
+still passes.
 
 ### Example
 
@@ -133,12 +215,22 @@ SHA-256.
   "tools":         { "node": "...", "prepareMaster": "...", "sharp": "...", "libvips": "...", "libpng": "...", "libwebp": "...", "mozjpeg": "...", "zlibNg": "...", "ffmpeg": "6.0" },
   "preprocessing": { "intermediatePixFmt": "rgb48le", "filterGraph": "...", "filterParams": { ... }, "ffmpegDeterminismFlags": [ ... ], "mlDenoiseModel": null, "mlDenoiseWeightsSha256": null },
   "resampleKernel": "lanczos3",
-  "encoders":      { "png": { ... }, "webp": { ... }, "jpeg": { ... } },
-  "variants":      { "master16": { "file": ..., "width": ..., "height": ..., "format": "png", "bitDepthPerChannel": 16, "sha256": ... }, "preview8": { ... }, "ai768": { ... } }
+  "encoders":      { "png": { ... }, "webp": { ... }, "jpeg": { ... }, "planeWebp": { "lossless": true, "effort": 6, "smartSubsample": false } },
+  "variants":      { "master16": { "file": ..., "width": ..., "height": ..., "format": "png", "bitDepthPerChannel": 16, "sha256": ... }, "preview8": { ... }, "ai768": { ... } },
+  "delivery":      {
+    "encoding": "12bit-two-plane-webp",
+    "planes":   { "hi": { "plane": "hi", "bits": "top byte (v>>8)" }, "lo": { "plane": "lo", "bits": "(((v>>4)&0xF)<<4)|((v>>4)&0xF)" } },
+    "pixelDataSha": "<sha256 of the full-precision RGB16 big-endian master samples>",
+    "recombinesTo": "<sha256 of the 12-bit-quantized RGB16 big-endian samples — what the planes recombine to>",
+    "hi": { "file": "master16-hi.webp", "width": ..., "height": ..., "format": "webp", "sha256": ..., "bytes": ... },
+    "lo": { "file": "master16-lo.webp", ... }
+    // (--derive-planes mode also records "master16Sha256": the source PNG's sha)
+  }
 }
 ```
 
-Mirror these fields into the `daily_photos` row when staging a day's photo.
+Mirror these fields into the `daily_photos` row when staging a day's photo
+(including `master16_hi_path` / `master16_lo_path` for the delivery planes).
 
 ## Phase 3: GitHub Actions wrapper
 
@@ -184,7 +276,13 @@ jobs:
 
 ## Files
 
-- `index.mjs` — the CLI.
+- `index.mjs` — the CLI (full pipeline + `--derive-planes` standalone mode).
 - `constants.mjs` — all frozen v1 parameters (variant set, filter graph, encoder
-  configs, resample kernel, default gate threshold).
+  configs, resample kernel, default gate threshold, **plane WebP params + the
+  `DELIVERY_ENCODING` descriptor**).
+- `planes.mjs` — the single definition of the two-plane delivery packing
+  (split / recombine / quantize12 / `derivePlanes`), shared by `index.mjs` and
+  `verify-planes.mjs` so the encode path and the equivalence proof never diverge.
+- `verify-planes.mjs` — decodes both plane WebPs, recombines, and asserts they
+  hash to the manifest's `delivery.recombinesTo` (the load-bearing proof).
 - `package.json` — exact pinned dependencies.

@@ -13,10 +13,10 @@
  * If WebGL2 is unavailable (tier C), `renderToneToUrl` returns null and callers
  * fall back to the CSS-filter approximation on a live element.
  */
-import type { ToneSettings } from '@/lib/types';
+import type { DailyPhoto, ToneSettings } from '@/lib/types';
 import {
   createV1Renderer,
-  decodeMaster16,
+  getDecodedMaster,
   type DecodedMaster,
   type V1Renderer,
 } from '@/lib/render';
@@ -57,9 +57,9 @@ export function isSharedAvailable(): boolean {
  * Safe to call repeatedly; the in-flight promise is shared.
  */
 export async function initSharedRenderer(
-  photoId: string,
-  master16Url: string,
+  photo: DailyPhoto,
 ): Promise<SharedRenderer | null> {
+  const photoId = photo.id;
   if (shared && shared.photoId === photoId) return shared;
   if (initPromise) return initPromise;
 
@@ -70,10 +70,9 @@ export async function initSharedRenderer(
       const renderer = createV1Renderer(canvas);
       if (!renderer) return null; // tier C
 
-      const res = await fetch(master16Url);
-      if (!res.ok) throw new Error(`master fetch ${res.status}`);
-      const buf = await res.arrayBuffer();
-      const master = await decodeMaster16(buf);
+      // Shared decode — reuses the editor's already-fetched planes (or PNG) for
+      // this photo (PRD §6.2.1 amendment 2026-06-12). No redundant master fetch.
+      const master = await getDecodedMaster(photo);
 
       // If a dispose happened while we were fetching/decoding, this init is
       // stale — drop it instead of repopulating the just-cleared singleton.

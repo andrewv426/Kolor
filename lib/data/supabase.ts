@@ -32,6 +32,10 @@ interface DailyPhotoRow {
   master16_path: string;
   preview8_path: string;
   ai768_path: string;
+  // Two-plane WebP delivery encoding (PRD §6.2.1 amendment 2026-06-12).
+  // Nullable: pre-amendment rows / photos not yet re-derived have no planes.
+  master16_hi_path: string | null;
+  master16_lo_path: string | null;
   master16_width: number;
   master16_height: number;
   pipeline: string;
@@ -143,7 +147,7 @@ export class SupabaseAdapter implements DataAdapter {
 
     const { data, error } = await supabase
       .from('daily_photos')
-      .select('id, play_date, day_number, theme, master16_path, preview8_path, ai768_path, master16_width, master16_height, pipeline, status')
+      .select('id, play_date, day_number, theme, master16_path, preview8_path, ai768_path, master16_hi_path, master16_lo_path, master16_width, master16_height, pipeline, status')
       .eq('play_date', today)
       .in('status', ['live', 'staged'])
       .single<DailyPhotoRow>();
@@ -160,6 +164,9 @@ export class SupabaseAdapter implements DataAdapter {
       theme:        data.theme,
       master16Url:  storageUrl(data.master16_path),
       preview8Url:  storageUrl(data.preview8_path),
+      // Two-plane delivery URLs when present (PRD §6.2.1 amendment 2026-06-12).
+      master16HiUrl: data.master16_hi_path ? storageUrl(data.master16_hi_path) : undefined,
+      master16LoUrl: data.master16_lo_path ? storageUrl(data.master16_lo_path) : undefined,
       width:         data.master16_width,
       height:        data.master16_height,
     };

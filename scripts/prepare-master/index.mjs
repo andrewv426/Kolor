@@ -27,7 +27,10 @@ import {
   FFMPEG_DETERMINISM_FLAGS,
   buildFilterGraph,
   DEFAULT_CLIP_THRESHOLD_PCT,
+  PLANES,
+  PLANE_WEBP,
 } from './constants.mjs';
+import { decodeMaster16Samples, derivePlanes } from './planes.mjs';
 
 // sharp must be deterministic and single-threaded for repeatable concurrency.
 sharp.cache(false);
@@ -42,13 +45,22 @@ const SELF_VERSION = JSON.parse(
 // arg parsing
 // --------------------------------------------------------------------------
 function parseArgs(argv) {
-  const args = { input: null, out: null, threshold: DEFAULT_CLIP_THRESHOLD_PCT, force: false };
+  const args = {
+    input: null,
+    out: null,
+    threshold: DEFAULT_CLIP_THRESHOLD_PCT,
+    force: false,
+    derivePlanes: null, // path to an existing master16.png (standalone mode)
+    mergeInto: null, // path to an existing full manifest to merge the delivery fragment into
+  };
   const rest = argv.slice(2);
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === '--out') args.out = rest[++i];
     else if (a === '--threshold') args.threshold = Number(rest[++i]);
     else if (a === '--force') args.force = true;
+    else if (a === '--derive-planes') args.derivePlanes = rest[++i];
+    else if (a === '--merge-into') args.mergeInto = rest[++i];
     else if (a === '-h' || a === '--help') args.help = true;
     else if (a.startsWith('--')) fail(`Unknown flag: ${a}`);
     else if (args.input === null) args.input = a;
@@ -63,12 +75,26 @@ function usage() {
     '',
     'Usage:',
     '  node index.mjs <input.jpg> [--out <dir>] [--threshold <pct>] [--force]',
+    '  node index.mjs --derive-planes <master16.png> [--out <dir>]',
     '',
     'Options:',
-    '  --out <dir>        Output directory (default: ./out-<input-basename>)',
-    `  --threshold <pct>  Clipping-gate threshold percent (default: ${DEFAULT_CLIP_THRESHOLD_PCT})`,
-    '  --force            Emit variants even if the clipping gate fails',
-    '  -h, --help         Show this help',
+    '  --out <dir>             Output directory (default: ./out-<input-basename>)',
+    `  --threshold <pct>       Clipping-gate threshold percent (default: ${DEFAULT_CLIP_THRESHOLD_PCT})`,
+    '  --force                 Emit variants even if the clipping gate fails',
+    '  --derive-planes <png>   Standalone: derive the two delivery planes',
+    '                          (master16-hi.webp + master16-lo.webp) and a',
+    '                          manifest fragment from an EXISTING canonical',
+    '                          master16.png — for already-minted photos. Does',
+    '                          NOT re-run the full pipeline. Also emits the',
+    '                          encoders.planeWebp fragment so the shape matches',
+    '                          the full pipeline.',
+    '  --merge-into <manifest> With --derive-planes: deterministically merge the',
+    '                          derived delivery + encoders.planeWebp fragment',
+    '                          INTO an existing full manifest.json (preserving its',
+    '                          historical source/curationGate/tools/preprocessing',
+    '                          blocks that --derive-planes cannot know) and write',
+    '                          the merged manifest (sorted keys) to <out>/manifest.json.',
+    '  -h, --help              Show this help',
   ].join('\n');
 }
 
@@ -307,6 +333,16 @@ async function main() {
     process.stdout.write(usage() + '\n');
     return;
   }
+
+  // --- standalone plane-derivation mode ---------------------------------
+  // Derive the two delivery planes + a manifest fragment from an EXISTING
+  // canonical master16.png. Pure function of the PNG bytes — no full pipeline,
+  // no candidate JPEG needed (used for already-minted photos like dev-001).
+  if (args.derivePlanes) {
+    await derivePlanesMode(args);
+    return;
+  }
+
   if (!args.input) fail(`Missing <input.jpg>.\n\n${usage()}`);
   const inputPath = resolve(args.input);
   if (!existsSync(inputPath)) fail(`Input not found: ${inputPath}`);
@@ -410,6 +446,14 @@ async function main() {
     ai768: { file: VARIANTS.ai768.file, ...(await variantMeta(ai768, 'jpeg')) },
   };
 
+  // --- delivery planes (derived from the canonical master16 PNG bytes) ---
+  // Pure function of master16 (NOT processedBuffer) so the planes are a function
+  // of the canonical artifact itself — identical to what --derive-planes yields.
+  const decoded = await decodeMaster16Samples(master16);
+  const { hiWebp, loWebp, delivery } = await derivePlanes(decoded);
+  writeFileSync(join(outDir, PLANES.hi.file), hiWebp);
+  writeFileSync(join(outDir, PLANES.lo.file), loWebp);
+
   // --- manifest (no timestamps, no absolute paths) ----------------------
   const manifest = {
     pipeline: PIPELINE_VERSION,
@@ -452,8 +496,9 @@ async function main() {
       mlDenoiseWeightsSha256: null,
     },
     resampleKernel: RESAMPLE_KERNEL,
-    encoders: ENCODER,
+    encoders: { ...ENCODER, planeWebp: PLANE_WEBP },
     variants,
+    delivery,
   };
 
   writeFileSync(join(outDir, 'manifest.json'), Buffer.from(stableStringify(manifest), 'utf8'));
@@ -461,7 +506,91 @@ async function main() {
   process.stderr.write(
     `prepare-master: wrote master16 (${variants.master16.width}x${variants.master16.height}, ` +
       `${variants.master16.bitDepthPerChannel}-bit), preview8 (${variants.preview8.width}x${variants.preview8.height}), ` +
-      `ai768 (${variants.ai768.width}x${variants.ai768.height}) + manifest.json to ${outDir}\n`,
+      `ai768 (${variants.ai768.width}x${variants.ai768.height}), ` +
+      `planes hi=${delivery.hi.bytes}B lo=${delivery.lo.bytes}B (${delivery.encoding}) ` +
+      `+ manifest.json to ${outDir}\n`,
+  );
+}
+
+// --------------------------------------------------------------------------
+// standalone --derive-planes mode: planes + manifest fragment from an existing
+// canonical master16.png. Writes master16-hi.webp, master16-lo.webp, and
+// manifest-delivery.json (the `delivery` fragment) into the output dir.
+// --------------------------------------------------------------------------
+async function derivePlanesMode(args) {
+  const pngPath = resolve(args.derivePlanes);
+  if (!existsSync(pngPath)) fail(`master16 PNG not found: ${pngPath}`);
+
+  const pngBuffer = readFileSync(pngPath);
+  const masterSha = sha256(pngBuffer);
+
+  const outDir = resolve(args.out || `out-planes-${basename(pngPath).replace(/\.[^.]+$/, '')}`);
+  mkdirSync(outDir, { recursive: true });
+
+  const decoded = await decodeMaster16Samples(pngBuffer);
+  const { hiWebp, loWebp, delivery } = await derivePlanes(decoded);
+
+  writeFileSync(join(outDir, PLANES.hi.file), hiWebp);
+  writeFileSync(join(outDir, PLANES.lo.file), loWebp);
+
+  // The fragment this path CAN know: the delivery block (with the source
+  // master's own sha so it can be matched back) plus the plane-WebP encoder
+  // params — emitted under `encoders.planeWebp`, the SAME shape the full
+  // pipeline records (index.mjs main() writes `encoders: { ...ENCODER, planeWebp }`).
+  const fragment = {
+    encoders: { planeWebp: PLANE_WEBP },
+    delivery: { ...delivery, master16Sha256: masterSha },
+  };
+
+  if (args.mergeInto) {
+    // Deterministic merge into an existing FULL manifest. We overwrite only the
+    // fields this path is authoritative for (delivery + encoders.planeWebp) and
+    // preserve every historical block --derive-planes cannot know (source,
+    // curationGate, resolutionGate, tools, preprocessing, resampleKernel,
+    // variants, the non-plane encoders, pipeline).
+    const intoPath = resolve(args.mergeInto);
+    if (!existsSync(intoPath)) fail(`--merge-into manifest not found: ${intoPath}`);
+    const existing = JSON.parse(readFileSync(intoPath, 'utf8'));
+
+    // Sanity: the existing manifest's master16 must be the PNG we derived from.
+    const existingMasterSha = existing?.variants?.master16?.sha256;
+    if (existingMasterSha && existingMasterSha !== masterSha) {
+      fail(
+        `--merge-into: master16 sha mismatch — manifest records ${existingMasterSha} ` +
+          `but --derive-planes hashed ${masterSha}. The planes would not describe ` +
+          `this manifest's master. Aborting.`,
+      );
+    }
+
+    const merged = {
+      ...existing,
+      encoders: { ...(existing.encoders || {}), planeWebp: PLANE_WEBP },
+      delivery: fragment.delivery,
+    };
+    writeFileSync(
+      join(outDir, 'manifest.json'),
+      Buffer.from(stableStringify(merged), 'utf8'),
+    );
+    process.stderr.write(
+      `prepare-master: derived planes from ${basename(pngPath)} ` +
+        `(${decoded.width}x${decoded.height}): hi=${delivery.hi.bytes}B lo=${delivery.lo.bytes}B ` +
+        `(${delivery.encoding}); recombinesTo=${delivery.recombinesTo.slice(0, 12)}…; ` +
+        `merged delivery + encoders.planeWebp into manifest.json (from ${basename(intoPath)}); ` +
+        `wrote ${PLANES.hi.file}, ${PLANES.lo.file}, manifest.json to ${outDir}\n`,
+    );
+    return;
+  }
+
+  writeFileSync(
+    join(outDir, 'manifest-delivery.json'),
+    Buffer.from(stableStringify(fragment), 'utf8'),
+  );
+
+  process.stderr.write(
+    `prepare-master: derived planes from ${basename(pngPath)} ` +
+      `(${decoded.width}x${decoded.height}): hi=${delivery.hi.bytes}B lo=${delivery.lo.bytes}B ` +
+      `(${delivery.encoding}); recombinesTo=${delivery.recombinesTo.slice(0, 12)}…; ` +
+      `wrote ${PLANES.hi.file}, ${PLANES.lo.file}, manifest-delivery.json to ${outDir}\n`,
   );
 }
 

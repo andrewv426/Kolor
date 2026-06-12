@@ -199,6 +199,7 @@ export function EditorScreen() {
       onTier={setTier}
       onError={() => setPhotoError(true)}
       captureRef={captureRef}
+      showProgress
       style={{ position: 'absolute', inset: 0 }}
       radius={isDesktop ? 'var(--r)' : undefined}
     />

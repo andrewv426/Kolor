@@ -25,6 +25,7 @@
 import UPNG from 'upng-js';
 import type { DecodedMaster } from './types';
 import { packFloat16 } from './float16';
+import { assertLoPlaneNibbleReplication } from './readbackProbe.mjs';
 
 /**
  * Decode a `master16.png` ArrayBuffer per the frozen v1 path. Resolves to a
@@ -84,6 +85,136 @@ export async function decodeMaster16(buf: ArrayBuffer): Promise<DecodedMaster> {
   }
 
   return { width, height, halfData, tier: 'A' };
+}
+
+/**
+ * Tier-A delivery decode from the two-plane WebP set (PRD §6.2.1 amendment
+ * 2026-06-12). The canonical master16.png stays the archival artifact; for web
+ * delivery the editor fetches two lossless-WebP planes instead (≈42% of the PNG
+ * size). This produces the SAME Tier-A `DecodedMaster` as `decodeMaster16` —
+ * recombine on CPU → s/65535 → packFloat16 → RGBA16F. No shader/math changes.
+ *
+ * SHIPPED packing = 12-bit:
+ *   hi plane[i] = (v >> 8) & 0xFF                       (top byte)
+ *   lo plane[i] = (nib << 4) | nib, nib = (v >> 4) & 0xF (top nibble of low byte)
+ *   recombine:  nib = loByte >> 4 ;  v = (hi << 8) | (nib << 4) | nib
+ *
+ * Decode flow (pinned):
+ *   1. createImageBitmap on each plane with { premultiplyAlpha: 'none',
+ *      colorSpaceConversion: 'none' } so the bytes are read verbatim (no
+ *      implicit color management, no premultiply).
+ *   2. Draw each to a 2D canvas with { alpha: false, willReadFrequently: true }
+ *      and getImageData — planes are opaque, so 8-bit readback is exact.
+ *   3. Assert both planes share the master's dimensions, then recombine per the
+ *      12-bit packing and pack each channel to half bits (forced-opaque alpha).
+ *
+ * Browser-only (needs createImageBitmap + a 2D canvas). Throws on a genuinely
+ * undecodable plane so the caller can fall back to the master16.png path.
+ *
+ * The readback integrity probe is `assertLoPlaneNibbleReplication` (re-exported
+ * below from ./readbackProbe.mjs — kept as a pure, DOM-free, node-testable
+ * module).
+ */
+export { assertLoPlaneNibbleReplication } from './readbackProbe.mjs';
+
+export async function decodeMaster16FromPlanes(
+  hiBuf: ArrayBuffer,
+  loBuf: ArrayBuffer,
+): Promise<DecodedMaster> {
+  if (typeof createImageBitmap === 'undefined') {
+    throw new Error('decodeMaster16FromPlanes: createImageBitmap unavailable');
+  }
+  // Pinned options — read the plane bytes verbatim (no color management).
+  const opts: ImageBitmapOptions = {
+    premultiplyAlpha: 'none',
+    colorSpaceConversion: 'none',
+  };
+  const [hiBmp, loBmp] = await Promise.all([
+    createImageBitmap(new Blob([hiBuf]), opts),
+    createImageBitmap(new Blob([loBuf]), opts),
+  ]);
+
+  let hi: Uint8ClampedArray;
+  let lo: Uint8ClampedArray;
+  let width: number;
+  let height: number;
+  try {
+    width = hiBmp.width;
+    height = hiBmp.height;
+    if (loBmp.width !== width || loBmp.height !== height) {
+      throw new Error(
+        `planes: dimension mismatch — hi ${width}x${height}, lo ${loBmp.width}x${loBmp.height}`,
+      );
+    }
+
+    hi = readBitmapRGBA8(hiBmp, width, height);
+    lo = readBitmapRGBA8(loBmp, width, height);
+  } finally {
+    // Deterministically release the decoded surfaces regardless of outcome.
+    hiBmp.close();
+    loBmp.close();
+  }
+
+  // Readback integrity probe (PRD §6.2.1 delivery-encoding amendment). The lo
+  // plane has a built-in invariant requiring NO server data: the encoder writes
+  // every lo byte as a replicated nibble `(nib<<4)|nib`, so for any valid byte
+  // `(b>>4) === (b&0xF)`. A color-managing browser (Safari risk) silently
+  // mangling the 8-bit readback would break this. Sample a deterministic spread
+  // of bytes; any violation throws → the masterCache catch falls back to PNG.
+  assertLoPlaneNibbleReplication(lo, width);
+
+  const pixels = width * height;
+  const halfData = new Uint16Array(pixels * 4);
+  const inv = 1 / 65535;
+  for (let p = 0; p < pixels; p++) {
+    const s = p * 4;
+    for (let ch = 0; ch < 3; ch++) {
+      const hiByte = hi[s + ch];
+      const nib = (lo[s + ch] >> 4) & 0x0f;
+      const v = ((hiByte << 8) | (nib << 4) | nib) * inv; // [0,1]
+      halfData[s + ch] = packFloat16(v);
+    }
+    halfData[s + 3] = packFloat16(1.0); // forced-opaque alpha
+  }
+
+  return { width, height, halfData, tier: 'A' };
+}
+
+/** Read an opaque ImageBitmap's RGBA8 pixels via a 2D canvas (browser-only). */
+function readBitmapRGBA8(
+  bitmap: ImageBitmap,
+  width: number,
+  height: number,
+): Uint8ClampedArray {
+  let ctx:
+    | CanvasRenderingContext2D
+    | OffscreenCanvasRenderingContext2D
+    | null = null;
+  // Planes are opaque → { alpha: false } makes readback exact; willReadFrequently
+  // hints the browser to keep a CPU-readable backing.
+  if (typeof OffscreenCanvas !== 'undefined') {
+    const oc = new OffscreenCanvas(width, height);
+    ctx = oc.getContext('2d', {
+      alpha: false,
+      willReadFrequently: true,
+      colorSpace: 'srgb',
+    }) as OffscreenCanvasRenderingContext2D | null;
+  }
+  if (!ctx && typeof document !== 'undefined') {
+    const c = document.createElement('canvas');
+    c.width = width;
+    c.height = height;
+    ctx = c.getContext('2d', {
+      alpha: false,
+      willReadFrequently: true,
+      colorSpace: 'srgb',
+    });
+  }
+  if (!ctx) {
+    throw new Error('decodeMaster16FromPlanes: no 2D canvas context available');
+  }
+  ctx.drawImage(bitmap, 0, 0);
+  return ctx.getImageData(0, 0, width, height).data;
 }
 
 /**

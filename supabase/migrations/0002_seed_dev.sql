@@ -36,6 +36,8 @@ insert into public.daily_photos (
   master16_path,
   preview8_path,
   ai768_path,
+  master16_hi_path,
+  master16_lo_path,
   master16_width,
   master16_height,
   manifest,
@@ -51,6 +53,8 @@ insert into public.daily_photos (
   'dev-001/master16.png',
   'dev-001/preview8.webp',
   'dev-001/ai768.jpg',
+  'dev-001/master16-hi.webp',
+  'dev-001/master16-lo.webp',
   2048,
   1536,
   '{
@@ -60,6 +64,12 @@ insert into public.daily_photos (
       "master16": {"width": 2048, "height": 1536, "format": "png"},
       "preview8": {"width": 1024, "height": 768,  "format": "webp"},
       "ai768":   {"width": 768,  "height": 576,  "format": "jpeg"}
+    },
+    "delivery": {
+      "encoding": "12bit-two-plane-webp",
+      "recombinesTo": "cc5d13e46e3212e6bb2635336d336f10ca9cafa844deff7ac141e8d7db8fb72a",
+      "hi": {"file": "master16-hi.webp", "width": 2048, "height": 1536, "format": "webp", "sha256": "54f9680ca1e17282970dc870de62570833188da4e03a49d105cfc57118deccb1"},
+      "lo": {"file": "master16-lo.webp", "width": 2048, "height": 1536, "format": "webp", "sha256": "e7f0c69bb41c1a794a6c5ff1e38bbc96b53529911e9183935412f40be0488c3c"}
     }
   }'::jsonb,
   'v1',

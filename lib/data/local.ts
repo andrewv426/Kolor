@@ -156,6 +156,10 @@ function buildDevPhoto(): DailyPhoto {
     theme:       DEV_PHOTO_THEME,
     master16Url: `/photo/${DEV_PHOTO_ID}/master16.png`,
     preview8Url: `/photo/${DEV_PHOTO_ID}/preview8.webp`,
+    // Two-plane WebP delivery (PRD §6.2.1 amendment 2026-06-12). Editor prefers
+    // these (≈42% of the PNG), falling back to master16.png on failure.
+    master16HiUrl: `/photo/${DEV_PHOTO_ID}/master16-hi.webp`,
+    master16LoUrl: `/photo/${DEV_PHOTO_ID}/master16-lo.webp`,
     width:        DEV_MASTER_WIDTH,
     height:       DEV_MASTER_HEIGHT,
   };

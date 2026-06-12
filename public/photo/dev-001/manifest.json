@@ -16,12 +16,50 @@
     },
     "thresholdPct": 2
   },
+  "delivery": {
+    "encoding": "12bit-two-plane-webp",
+    "hi": {
+      "bytes": 2925882,
+      "file": "master16-hi.webp",
+      "format": "webp",
+      "height": 1536,
+      "sha256": "54f9680ca1e17282970dc870de62570833188da4e03a49d105cfc57118deccb1",
+      "width": 2048
+    },
+    "lo": {
+      "bytes": 4642218,
+      "file": "master16-lo.webp",
+      "format": "webp",
+      "height": 1536,
+      "sha256": "e7f0c69bb41c1a794a6c5ff1e38bbc96b53529911e9183935412f40be0488c3c",
+      "width": 2048
+    },
+    "master16Sha256": "abd20fdc2034f4b3372cb31889d1827b3795b87935123942a9ddb7995499134c",
+    "note": "Web-delivery two-plane lossless WebP. hi = top byte of each 16-bit RGB sample; lo = top nibble of the low byte replicated to a full byte ((nib<<4)|nib). Decode: nib=lo>>4; v=(hi<<8)|(nib<<4)|nib. NOT bit-identical to master16.png (bottom 4 bits dropped); recombines bit-exactly to the 12-bit-quantized master samples (recombinesTo).",
+    "pixelDataSha": "76c7f11593a67687514ebd801d6f606eb43d31e3657df4b28524943a46ccf0ed",
+    "planes": {
+      "hi": {
+        "bits": "top byte (v>>8)",
+        "plane": "hi"
+      },
+      "lo": {
+        "bits": "(((v>>4)&0xF)<<4)|((v>>4)&0xF)",
+        "plane": "lo"
+      }
+    },
+    "recombinesTo": "cc5d13e46e3212e6bb2635336d336f10ca9cafa844deff7ac141e8d7db8fb72a"
+  },
   "encoders": {
     "jpeg": {
       "chromaSubsampling": "4:2:0",
       "mozjpeg": true,
       "progressive": true,
       "quality": 90
+    },
+    "planeWebp": {
+      "effort": 6,
+      "lossless": true,
+      "smartSubsample": false
     },
     "png": {
       "adaptiveFiltering": false,

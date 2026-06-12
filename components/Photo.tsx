@@ -18,8 +18,7 @@ import type { ToneSettings } from '@/lib/types';
 import type { DailyPhoto } from '@/lib/types';
 import {
   createV1Renderer,
-  decodeMaster16,
-  type DecodedMaster,
+  getDecodedMaster,
   type V1Renderer,
 } from '@/lib/render';
 import { toCssFilter } from './cssFilter';
@@ -27,29 +26,10 @@ import styles from './Photo.module.css';
 
 export type RenderTier = 'A' | 'B' | 'C';
 
-// ---------------------------------------------------------------------------
-// Module-level decoded-master cache (promise cache, keyed by URL).
-// The ~17MB master16 PNG is fetched + UPNG-decoded ONCE per session per URL,
-// not once per <Photo> mount. Every Photo (editor + the two ConfirmReveal
-// previews) shares the same decode. The promise is cached so concurrent mounts
-// coalesce onto a single in-flight fetch+decode; a rejected decode is evicted so
-// a later mount can retry.
-const masterCache = new Map<string, Promise<DecodedMaster>>();
-
-function getDecodedMaster(url: string): Promise<DecodedMaster> {
-  let p = masterCache.get(url);
-  if (!p) {
-    p = (async () => {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`master ${res.status}`);
-      const buf = await res.arrayBuffer();
-      return decodeMaster16(buf);
-    })();
-    p.catch(() => masterCache.delete(url)); // evict failures so retry can refetch
-    masterCache.set(url, p);
-  }
-  return p;
-}
+// The decoded-master fetch/decode + cache lives in lib/render/masterCache so the
+// editor (<Photo>), the gallery's shared offscreen renderer, and the inspect
+// view all coalesce onto ONE fetch+decode per photo. It prefers the two-plane
+// WebP delivery (PRD §6.2.1 amendment 2026-06-12), falling back to master16.png.
 
 interface PhotoProps {
   photo: DailyPhoto;
@@ -64,6 +44,13 @@ interface PhotoProps {
   onTier?: (tier: RenderTier) => void;
   /** Fired when the photo genuinely can't load (tier-C preview also failed). */
   onError?: () => void;
+  /**
+   * Show the streaming/decoding progress overlay (thin accent bar + mono % over
+   * the recessed letterbox) while the master loads. Opt-in — the editor photo
+   * stage sets this; small gallery/preview tiles reuse the cached decode and
+   * leave it off. Gated by prefers-reduced-motion (no transition when reduced).
+   */
+  showProgress?: boolean;
   /**
    * Optional capture handle. Photo sets `.current` to a function that snapshots
    * the live WebGL canvas to a PNG data-URL (or null on tier C / before load).
@@ -85,10 +72,17 @@ export function Photo({
   onError,
   captureRef,
   children,
+  showProgress = false,
 }: PhotoProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<V1Renderer | null>(null);
   const [tier, setTier] = useState<RenderTier | null>(null);
+  // Master streaming/decode progress while loading; null once rendered.
+  //   number  → byte-accurate fraction 0..1 (Content-Length present)
+  //   'pulse' → total unknown; show an indeterminate (pulsing) bar, no percent
+  const [progress, setProgress] = useState<number | 'pulse' | null>(
+    showProgress ? 0 : null,
+  );
 
   // Create + load the renderer once per photo.
   useEffect(() => {
@@ -108,9 +102,17 @@ export function Photo({
     }
     rendererRef.current = renderer;
 
+    if (showProgress) setProgress(0);
     (async () => {
       try {
-        const master = await getDecodedMaster(photo.master16Url);
+        const master = await getDecodedMaster(
+          photo,
+          showProgress
+            ? (p) => {
+                if (!cancelled) setProgress(p.indeterminate ? 'pulse' : p.fraction);
+              }
+            : undefined,
+        );
         if (cancelled) return;
         canvas.width = master.width;
         canvas.height = master.height;
@@ -119,12 +121,14 @@ export function Photo({
         const t = renderer.tier;
         setTier(t);
         onTier?.(t);
+        setProgress(null);
       } catch {
         if (cancelled) return;
         renderer.destroy();
         rendererRef.current = null;
         setTier('C');
         onTier?.('C');
+        setProgress(null);
       }
     })();
 
@@ -197,6 +201,32 @@ export function Photo({
             style={{ background: css.tint, mixBlendMode: 'soft-light' }}
           />
         </>
+      ) : null}
+
+      {/* Loading progress — thin accent bar + mono percentage over the
+          recessed letterbox while the master streams/decodes. Shown only when
+          the caller opts in (editor photo stage) and a tier isn't resolved yet.
+          Sentence-case label per the Darkroom token system. */}
+      {showProgress && progress !== null && tier === null ? (
+        <div className={styles.loading} role="status" aria-live="polite">
+          <div className={styles.loadingLabel}>
+            {progress === 'pulse'
+              ? 'Loading master…'
+              : `Loading master — ${Math.round(progress * 100)}%`}
+          </div>
+          <div className={styles.loadingTrack}>
+            {progress === 'pulse' ? (
+              // Total unknown — indeterminate pulse (reduced-motion: static
+              // half-fill, handled in CSS).
+              <div className={`${styles.loadingBar} ${styles.loadingBarPulse}`} />
+            ) : (
+              <div
+                className={styles.loadingBar}
+                style={{ width: `${Math.round(progress * 100)}%` }}
+              />
+            )}
+          </div>
+        </div>
       ) : null}
 
       {scrim ? (

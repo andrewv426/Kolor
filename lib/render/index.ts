@@ -10,7 +10,8 @@ import type { ToneSettings } from '@/lib/types';
 export type { DecodedMaster, V1Renderer } from './types';
 
 export { createV1Renderer } from './renderer';
-export { decodeMaster16, decodePreview8 } from './decode';
+export { decodeMaster16, decodeMaster16FromPlanes, decodePreview8 } from './decode';
+export { getDecodedMaster, type ProgressFn, type Progress } from './masterCache';
 export { packFloat16, packArray } from './float16';
 export { FRAGMENT_SRC, VERTEX_SRC } from './shader';
 
