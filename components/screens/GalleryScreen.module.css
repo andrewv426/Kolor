@@ -1,0 +1,47 @@
+.scroll {
+  overflow-y: auto;
+}
+
+.header,
+.headerDesk {
+  gap: 14px;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 4;
+  border-bottom: 1px solid var(--line);
+}
+.header {
+  padding: 18px 18px 14px;
+}
+.headerDesk {
+  padding: 26px 32px 18px;
+}
+
+.earlyBanner {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line-2);
+}
+
+.you,
+.youDesk {
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.you {
+  margin: 14px 18px;
+}
+.youDesk {
+  margin: 18px 32px;
+}
+
+.grid {
+  display: grid;
+  gap: 10px;
+}

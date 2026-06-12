@@ -1,0 +1,75 @@
+.tile {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 0;
+  cursor: pointer;
+  background: var(--panel);
+  transition: transform 0.14s ease;
+}
+
+.tile:hover {
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile {
+    transition: none;
+  }
+  .tile:hover {
+    transform: none;
+  }
+}
+
+.canvasCell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  background: #0b0a09;
+}
+
+.thumb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.placeholder {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--panel-2), var(--panel));
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(8, 7, 6, 0.6), transparent 50%);
+}
+
+.tmeta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+}
+
+.corner {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+}
+
+.who {
+  font-size: 10.5px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -1,0 +1,86 @@
+/*
+ * color-gradle — global design tokens ("Darkroom" theme, dark default).
+ * Source of truth: design_handoff_color_gradle/README.md → Design Tokens.
+ * This file is the token stylesheet + base body styles only. Component CSS
+ * lives next to components (per file-ownership boundaries).
+ */
+
+:root {
+  /* Color — Darkroom (default, dark) */
+  --bg: #141210; /* App background */
+  --bg-2: #0e0d0b; /* Recessed areas (editor letterbox) */
+  --panel: #1d1a15; /* Cards, sheets, sidebars */
+  --panel-2: #252118; /* Inputs, chips, secondary buttons */
+  --raise: #2c281e; /* Hover/active raised surfaces */
+  --line: rgba(245, 238, 225, 0.11); /* Hairline dividers/borders */
+  --line-2: rgba(245, 238, 225, 0.18); /* Stronger borders */
+  --ink: #f2eee5; /* Primary text */
+  --ink-2: #a8a192; /* Secondary text */
+  --ink-3: #736c5e; /* Tertiary / metadata */
+  --accent: #e0a75c; /* Single accent (amber) */
+  --accent-ink: #1b140a; /* Text/icons on accent */
+
+  /* Radius */
+  --r: 14px; /* Cards/sheets */
+  --r-sm: 10px; /* Buttons, inputs, tiles */
+  --r-xs: 6px;
+
+  /* Shadow */
+  --shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.7);
+
+  /* Layout */
+  --maxw: 1180px;
+
+  /* Type families (wired to next/font CSS variables from layout.tsx) */
+  --font-display-stack: var(--font-display), 'Instrument Serif', serif;
+  --font-ui-stack: var(--font-ui), system-ui, sans-serif;
+  --mono: var(--font-mono), 'DM Mono', ui-monospace, monospace;
+}
+
+/* Color — Paper theme (light, optional Tweak). Apply via [data-theme="paper"]. */
+[data-theme='paper'] {
+  --bg: #e9e5dd;
+  --bg-2: #ded9cf;
+  --panel: #fbf9f5;
+  --panel-2: #f2eee6;
+  --raise: #ffffff;
+  --line: rgba(28, 24, 18, 0.12);
+  --line-2: rgba(28, 24, 18, 0.2);
+  --ink: #1b1814;
+  --ink-2: #6e685c;
+  --ink-3: #9a9384;
+  --shadow: 0 22px 50px -30px rgba(40, 32, 18, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui-stack);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Numeric / mono helper — tabular figures for timer, values, counts. */
+.mono {
+  font-family: var(--mono);
+  font-feature-settings: 'tnum';
+  letter-spacing: -0.01em;
+}

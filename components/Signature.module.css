@@ -1,0 +1,12 @@
+.swrow {
+  display: flex;
+  gap: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.sw {
+  flex: 1;
+  height: 26px;
+}
