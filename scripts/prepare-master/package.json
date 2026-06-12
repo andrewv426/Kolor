@@ -1,0 +1,13 @@
+{
+  "name": "prepare-master",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "color-gradle Phase-0 canonical master-prep CLI (pipeline v1)",
+  "bin": { "prepare-master": "./index.mjs" },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "sharp": "0.35.1",
+    "ffmpeg-static": "5.3.0"
+  }
+}
