@@ -71,6 +71,10 @@ node index.mjs <input.jpg> [--out <dir>] [--threshold <pct>] [--force]
 # EXISTING canonical master16.png (for already-minted photos whose candidate
 # JPEG is gone — the planes are a pure function of the PNG):
 node index.mjs --derive-planes <master16.png> [--out <dir>]
+
+# standalone + merge the derived fragment INTO an existing full manifest
+# (preserves the historical blocks --derive-planes cannot know):
+node index.mjs --derive-planes <master16.png> --merge-into <manifest.json> [--out <dir>]
 ```
 
 - `--out <dir>` — output directory (default `./out-<input-basename>`, or
@@ -79,14 +83,45 @@ node index.mjs --derive-planes <master16.png> [--out <dir>]
 - `--force` — emit variants even if the curation or resolution gate fails
   (records the override in the manifest).
 - `--derive-planes <png>` — standalone mode: writes `master16-hi.webp`,
-  `master16-lo.webp`, and `manifest-delivery.json` (the `delivery` fragment, plus
-  the source PNG's `master16Sha256`). Does **not** run ffmpeg/the curation gate.
+  `master16-lo.webp`, and `manifest-delivery.json` (the `delivery` fragment with
+  the source PNG's `master16Sha256`, **plus `encoders.planeWebp`** so the fragment
+  shape matches what the full pipeline records). Does **not** run ffmpeg/the
+  curation gate.
+- `--merge-into <manifest.json>` — only valid with `--derive-planes`. Reads an
+  existing full manifest, overwrites **only** the fields this path is
+  authoritative for (`delivery` + `encoders.planeWebp`), preserves every
+  historical block, and writes the merged `manifest.json` (sorted keys,
+  deterministic). Aborts if the manifest's `variants.master16.sha256` does not
+  match the derived PNG's sha.
 
 Exit codes: `0` success, `2` curation or resolution gate failed (without
 `--force`), `1` any other error.
 
 After either mode, prove plane equivalence with `node verify-planes.mjs [dir]`
 (defaults to `../../public/photo/dev-001`).
+
+### Manifest provenance — which fields come from which path
+
+The two paths produce **one canonical manifest shape**. Both record the same
+`delivery` block and `encoders.planeWebp`. They differ only in which blocks each
+can author from first principles:
+
+| Field / block | Full pipeline (`<input.jpg>`) | `--derive-planes [--merge-into]` |
+|---|---|---|
+| `pipeline`, `resampleKernel` | authored | from `--merge-into` (preserved) |
+| `source`, `curationGate`, `resolutionGate` | authored (real candidate + gates) | **cannot know** → from `--merge-into` (preserved) |
+| `tools`, `preprocessing` | authored (real ffmpeg/sharp run) | **cannot know** → from `--merge-into` (preserved) |
+| `variants` (master16/preview8/ai768) | authored | from `--merge-into` (preserved) |
+| `encoders.png/webp/jpeg` | authored | from `--merge-into` (preserved) |
+| `encoders.planeWebp` | authored (`PLANE_WEBP`) | **authored** (`PLANE_WEBP`) |
+| `delivery` (planes + `recombinesTo`) | authored (from master16 bytes) | **authored** (from master16 bytes) |
+| `delivery.master16Sha256` | — (master16 sha is in `variants`) | **authored** (source PNG sha) |
+
+`dev-001`'s committed manifest was regenerated with
+`--derive-planes … --merge-into …` against its own `master16.png`: the delivery
++ `encoders.planeWebp` fragment is recomputed and merged, the historical blocks
+are carried through verbatim. The planes are byte-identical, so `verify-planes`
+still passes.
 
 ### Example
 

@@ -56,6 +56,11 @@
       "progressive": true,
       "quality": 90
     },
+    "planeWebp": {
+      "effort": 6,
+      "lossless": true,
+      "smartSubsample": false
+    },
     "png": {
       "adaptiveFiltering": false,
       "colourspace": "rgb16",

@@ -25,6 +25,7 @@
 import UPNG from 'upng-js';
 import type { DecodedMaster } from './types';
 import { packFloat16 } from './float16';
+import { assertLoPlaneNibbleReplication } from './readbackProbe.mjs';
 
 /**
  * Decode a `master16.png` ArrayBuffer per the frozen v1 path. Resolves to a
@@ -109,7 +110,13 @@ export async function decodeMaster16(buf: ArrayBuffer): Promise<DecodedMaster> {
  *
  * Browser-only (needs createImageBitmap + a 2D canvas). Throws on a genuinely
  * undecodable plane so the caller can fall back to the master16.png path.
+ *
+ * The readback integrity probe is `assertLoPlaneNibbleReplication` (re-exported
+ * below from ./readbackProbe.mjs — kept as a pure, DOM-free, node-testable
+ * module).
  */
+export { assertLoPlaneNibbleReplication } from './readbackProbe.mjs';
+
 export async function decodeMaster16FromPlanes(
   hiBuf: ArrayBuffer,
   loBuf: ArrayBuffer,
@@ -127,16 +134,34 @@ export async function decodeMaster16FromPlanes(
     createImageBitmap(new Blob([loBuf]), opts),
   ]);
 
-  const width = hiBmp.width;
-  const height = hiBmp.height;
-  if (loBmp.width !== width || loBmp.height !== height) {
-    throw new Error(
-      `planes: dimension mismatch — hi ${width}x${height}, lo ${loBmp.width}x${loBmp.height}`,
-    );
+  let hi: Uint8ClampedArray;
+  let lo: Uint8ClampedArray;
+  let width: number;
+  let height: number;
+  try {
+    width = hiBmp.width;
+    height = hiBmp.height;
+    if (loBmp.width !== width || loBmp.height !== height) {
+      throw new Error(
+        `planes: dimension mismatch — hi ${width}x${height}, lo ${loBmp.width}x${loBmp.height}`,
+      );
+    }
+
+    hi = readBitmapRGBA8(hiBmp, width, height);
+    lo = readBitmapRGBA8(loBmp, width, height);
+  } finally {
+    // Deterministically release the decoded surfaces regardless of outcome.
+    hiBmp.close();
+    loBmp.close();
   }
 
-  const hi = readBitmapRGBA8(hiBmp, width, height);
-  const lo = readBitmapRGBA8(loBmp, width, height);
+  // Readback integrity probe (PRD §6.2.1 delivery-encoding amendment). The lo
+  // plane has a built-in invariant requiring NO server data: the encoder writes
+  // every lo byte as a replicated nibble `(nib<<4)|nib`, so for any valid byte
+  // `(b>>4) === (b&0xF)`. A color-managing browser (Safari risk) silently
+  // mangling the 8-bit readback would break this. Sample a deterministic spread
+  // of bytes; any violation throws → the masterCache catch falls back to PNG.
+  assertLoPlaneNibbleReplication(lo, width);
 
   const pixels = width * height;
   const halfData = new Uint16Array(pixels * 4);

@@ -17,8 +17,18 @@ import type { DailyPhoto } from '@/lib/types';
 import { decodeMaster16, decodeMaster16FromPlanes } from './decode';
 import type { DecodedMaster } from './types';
 
-/** Progress callback: 0..1 over the streamed bytes (decode is the last beat). */
-export type ProgressFn = (fraction: number) => void;
+/**
+ * Progress update. `fraction` is 0..1 over the streamed bytes (decode is the
+ * last beat) when byte-accurate progress is known. When `indeterminate` is true
+ * (a stream has no Content-Length so the total is unknown) `fraction` is null
+ * and the UI should show a label without a percentage.
+ */
+export type Progress =
+  | { fraction: number; indeterminate?: false }
+  | { fraction: null; indeterminate: true };
+
+/** Progress callback (see {@link Progress}). */
+export type ProgressFn = (p: Progress) => void;
 
 const masterCache = new Map<string, Promise<DecodedMaster>>();
 
@@ -68,11 +78,17 @@ async function decodeForPhoto(
       const dl = [0, 0];
       const tot = [0, 0];
       const report = () => {
+        // Byte-accurate only when BOTH streams expose a Content-Length. If
+        // either total is unknown we can't compute a meaningful percent — report
+        // an indeterminate state so the UI shows a pulse, not a fake number.
         const known = tot[0] > 0 && tot[1] > 0;
-        const frac = known
-          ? (dl[0] + dl[1]) / (tot[0] + tot[1])
-          : (Math.min(dl[0], 1) + Math.min(dl[1], 1)) / 2;
-        onProgress?.(Math.min(0.92, frac * 0.92)); // reserve last 8% for decode
+        if (!known) {
+          onProgress?.({ fraction: null, indeterminate: true });
+          return;
+        }
+        const frac = (dl[0] + dl[1]) / (tot[0] + tot[1]);
+        // reserve last 8% for decode
+        onProgress?.({ fraction: Math.min(0.92, frac * 0.92) });
       };
       const [hi, lo] = await Promise.all([
         fetchWithProgress(photo.master16HiUrl, (d, t) => {
@@ -88,7 +104,7 @@ async function decodeForPhoto(
       ]);
       if (!hi.ok || !lo.ok) throw new Error(`planes ${hi.status}/${lo.status}`);
       const decoded = await decodeMaster16FromPlanes(hi.buffer, lo.buffer);
-      onProgress?.(1);
+      onProgress?.({ fraction: 1 });
       return decoded;
     } catch {
       // Fall through to the canonical PNG path on any plane failure.
@@ -96,11 +112,12 @@ async function decodeForPhoto(
   }
 
   const res = await fetchWithProgress(photo.master16Url, (d, t) => {
-    if (t > 0) onProgress?.(Math.min(0.92, (d / t) * 0.92));
+    if (t > 0) onProgress?.({ fraction: Math.min(0.92, (d / t) * 0.92) });
+    else onProgress?.({ fraction: null, indeterminate: true });
   });
   if (!res.ok) throw new Error(`master ${res.status}`);
   const decoded = await decodeMaster16(res.buffer);
-  onProgress?.(1);
+  onProgress?.({ fraction: 1 });
   return decoded;
 }
 
@@ -121,7 +138,7 @@ export function getDecodedMaster(
     p.catch(() => masterCache.delete(cacheKey));
     masterCache.set(cacheKey, p);
   } else {
-    onProgress?.(1);
+    onProgress?.({ fraction: 1 });
   }
   return p;
 }

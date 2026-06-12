@@ -77,8 +77,12 @@ export function Photo({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<V1Renderer | null>(null);
   const [tier, setTier] = useState<RenderTier | null>(null);
-  // Master streaming/decode progress: 0..1 while loading, null once rendered.
-  const [progress, setProgress] = useState<number | null>(showProgress ? 0 : null);
+  // Master streaming/decode progress while loading; null once rendered.
+  //   number  → byte-accurate fraction 0..1 (Content-Length present)
+  //   'pulse' → total unknown; show an indeterminate (pulsing) bar, no percent
+  const [progress, setProgress] = useState<number | 'pulse' | null>(
+    showProgress ? 0 : null,
+  );
 
   // Create + load the renderer once per photo.
   useEffect(() => {
@@ -104,8 +108,8 @@ export function Photo({
         const master = await getDecodedMaster(
           photo,
           showProgress
-            ? (f) => {
-                if (!cancelled) setProgress(f);
+            ? (p) => {
+                if (!cancelled) setProgress(p.indeterminate ? 'pulse' : p.fraction);
               }
             : undefined,
         );
@@ -206,13 +210,21 @@ export function Photo({
       {showProgress && progress !== null && tier === null ? (
         <div className={styles.loading} role="status" aria-live="polite">
           <div className={styles.loadingLabel}>
-            Loading master — {Math.round(progress * 100)}%
+            {progress === 'pulse'
+              ? 'Loading master…'
+              : `Loading master — ${Math.round(progress * 100)}%`}
           </div>
           <div className={styles.loadingTrack}>
-            <div
-              className={styles.loadingBar}
-              style={{ width: `${Math.round(progress * 100)}%` }}
-            />
+            {progress === 'pulse' ? (
+              // Total unknown — indeterminate pulse (reduced-motion: static
+              // half-fill, handled in CSS).
+              <div className={`${styles.loadingBar} ${styles.loadingBarPulse}`} />
+            ) : (
+              <div
+                className={styles.loadingBar}
+                style={{ width: `${Math.round(progress * 100)}%` }}
+              />
+            )}
           </div>
         </div>
       ) : null}

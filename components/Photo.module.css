@@ -90,8 +90,34 @@
   transition: width 0.18s ease-out;
 }
 
+/* Indeterminate state — total unknown (no Content-Length). The bar pulses
+   subtly between a half- and fuller-fill instead of showing a fake percent. */
+.loadingBarPulse {
+  width: 100%;
+  transform-origin: left center;
+  animation: loadingPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes loadingPulse {
+  0%,
+  100% {
+    transform: scaleX(0.35);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scaleX(0.7);
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .loadingBar {
     transition: none;
+  }
+  /* No motion — settle on a static half-fill. */
+  .loadingBarPulse {
+    animation: none;
+    transform: scaleX(0.5);
+    opacity: 0.8;
   }
 }
