@@ -2,9 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project status: pre-implementation
+## Project status: Phase 0–1 built (local mode)
 
-This repository has **product + design docs only** — no application code, no `package.json`, no build/lint/test tooling yet. Read the doc map below before doing anything substantive.
+The Next.js app exists and the full daily loop works **in local mode** (no Supabase keys needed — `localStorage` adapter + seeded gallery). The Supabase path is fully coded but inert until real keys land in `.env.local`. Read the doc map below before doing anything substantive.
+
+**Commands** (repo root): `npm run dev` (app at localhost:3000), `npm run build`, `npm run lint`, `npm run test:render` (node-based float16/sRGB/per-op tests for the frozen v1 engine). Copy `.env.example` → `.env.local` with real Supabase values to leave local mode; see `lib/data/README.md` for migrations + dashboard setup.
 
 ## Documentation map
 
@@ -19,7 +21,7 @@ When product rules and UI disagree, **PRD wins on behavior/architecture**; **des
 
 The product (working title *color-gradle*) is a **daily photo-editing game**: each day one unedited photo is shown, the user edits it with ~10 Lightroom-style sliders under a 5-minute timer, then — only after submitting — sees a gallery of everyone else's edits (humans **and** AI models) of the same photo, with each player's exact settings inspectable and likeable.
 
-There are no app commands to run yet. The **next step is Phase 0** (see `PRD.md` §11): scaffold Next.js (App Router) + TypeScript and a Supabase project. Once scaffolded, tooling will follow standard Next.js conventions (`npm run dev` / `build` / `lint`, etc.) — add the real commands to this file at that point.
+Code layout: `lib/render/` is the frozen pipeline-v1 WebGL2 engine (float16 packing, UPNG 16-bit decode, the §6.2.1 shader — treat as frozen; changes follow the v2 rule); `lib/data/` is the `DataAdapter` interface with `LocalAdapter` (default without keys) and `SupabaseAdapter`; `lib/types.ts` holds the shared settings contract incl. `clampToneSettings` (the one validator, invariant #3); `supabase/migrations/` is the schema + RLS (commit-reveal enforced in SQL); `app/` + `components/` are the five game screens (E2/R1/G1/D1/S3 per the handoff); `public/photo/dev-001/` is the staged dev photo (already v1-canonical via prepare-master). Remaining phases: Supabase project wiring (needs user keys), Phase 3 photo automation, Phases 4–6 (see PRD §11).
 
 One non-app script exists: **`scripts/prepare-master`** — the single deterministic preprocessing implementation that turns a candidate JPEG into the v1-canonical master + variants (`master16`/`preview8`/`ai768`), enforcing the curation-headroom and minimum-resolution gates and writing the manifest. Run it with `npm install && node index.mjs <input.jpg> [--out <dir>] [--threshold <pct>] [--force]` from inside `scripts/prepare-master/` (see its README for pinned tool versions, params, and the per-architecture determinism caveat). It is run **manually in Phase 0** (so the very first test photo is already v1-canonical) and **wrapped by the GitHub Actions pre-stage workflow in Phase 3** — same code in both paths. See PRD §6.2.1 for the spec it implements.
 
