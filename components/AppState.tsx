@@ -23,15 +23,9 @@ import { DEFAULT_TONE, clampToneSettings } from '@/lib/types';
 const WORKING_TONE_KEY = 'cg2_tone';
 const SEEN_HOWTO_KEY = 'cg2_seen_howto';
 
-/** A starting look so the editor isn't a flat zero on first paint (prototype). */
-const SEED_TONE: ToneSettings = clampToneSettings({
-  temp: 16,
-  contrast: 18,
-  shadows: 22,
-  vibrance: 20,
-  exposure: 4,
-  blacks: -8,
-});
+// The editor starts neutral (all sliders at 0 = DEFAULT_TONE). A non-neutral
+// starting look was removed: it surfaced dark-edge speckle as the first
+// impression and let an untouched submit dodge PRD §10's all-default guard.
 
 function load<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
@@ -58,7 +52,6 @@ interface AppStateValue {
   setToneVal: (key: ToneKey, value: number) => void;
   setTone: (tone: ToneSettings) => void;
   resetTone: () => void;
-  seedTone: () => void;
   /** First-run "How to play" modal — shown once, persisted, re-openable. */
   howToSeen: boolean;
   markHowToSeen: () => void;
@@ -67,7 +60,7 @@ interface AppStateValue {
 const AppStateContext = createContext<AppStateValue | null>(null);
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
-  const [tone, setToneState] = useState<ToneSettings>(SEED_TONE);
+  const [tone, setToneState] = useState<ToneSettings>(DEFAULT_TONE);
   const [howToSeen, setHowToSeen] = useState(true);
   const [hydrated, setHydrated] = useState(false);
 
@@ -77,7 +70,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   // effect rule is meant for.
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
-    setToneState(clampToneSettings(load(WORKING_TONE_KEY, SEED_TONE)));
+    setToneState(clampToneSettings(load(WORKING_TONE_KEY, DEFAULT_TONE)));
     setHowToSeen(load(SEEN_HOWTO_KEY, false));
     setHydrated(true);
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -99,7 +92,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resetTone = useCallback(() => setToneState({ ...DEFAULT_TONE }), []);
-  const seedTone = useCallback(() => setToneState({ ...SEED_TONE }), []);
 
   const markHowToSeen = useCallback(() => {
     setHowToSeen(true);
@@ -112,11 +104,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setToneVal,
       setTone,
       resetTone,
-      seedTone,
       howToSeen,
       markHowToSeen,
     }),
-    [tone, setToneVal, setTone, resetTone, seedTone, howToSeen, markHowToSeen],
+    [tone, setToneVal, setTone, resetTone, howToSeen, markHowToSeen],
   );
 
   return (

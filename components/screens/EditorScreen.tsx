@@ -26,6 +26,7 @@ import { DEFAULT_TONE } from '@/lib/types';
 import styles from './EditorScreen.module.css';
 
 const ROUND_SECONDS = 5 * 60;
+const ROUND_MS = ROUND_SECONDS * 1000;
 
 export function EditorScreen() {
   const router = useRouter();
@@ -45,6 +46,16 @@ export function EditorScreen() {
   const startedAt = useRef<number | null>(null);
   const submittedRef = useRef(false);
   const loadedFrom = useRef<string | null>(null);
+  // Capture handle into the live editor Photo: lets ConfirmReveal reuse the
+  // already-rendered frame as a flat <img> instead of mounting two more WebGL
+  // contexts (which would re-decode the master and triple the live contexts).
+  const captureRef = useRef<(() => string | null) | null>(null);
+  const [snapshot, setSnapshot] = useState<string | null>(null);
+
+  const openConfirm = useCallback(() => {
+    setSnapshot(captureRef.current?.() ?? null);
+    setConfirmOpen(true);
+  }, []);
 
   // Stamp the round-start time once, on mount (client-side only).
   useEffect(() => {
@@ -80,7 +91,10 @@ export function EditorScreen() {
     if (submittedRef.current || !photo) return;
     submittedRef.current = true;
     setSubmitting(true);
-    const timeTakenMs = Date.now() - (startedAt.current ?? Date.now());
+    // Cap at the round length: clock drift / a late auto-submit tick must never
+    // record a wall-clock time past the 5:00 cap. Floor at 0 defensively.
+    const elapsed = Date.now() - (startedAt.current ?? Date.now());
+    const timeTakenMs = Math.max(0, Math.min(ROUND_MS, elapsed));
     try {
       await getAdapter().submitEdit(photo.id, tone, timeTakenMs);
     } catch {
@@ -90,15 +104,22 @@ export function EditorScreen() {
     router.push('/gallery');
   }, [photo, tone, router]);
 
-  // Countdown — auto-submit as-is at 0:00 (no confirm).
+  // Countdown — driven by absolute deadline math (startedAt + ROUND_MS), not by
+  // accumulating setTimeout ticks, so drift can't push the wall clock past the
+  // cap before auto-submit fires. We recompute remaining seconds every tick and
+  // auto-submit as-is (no confirm) the moment the deadline passes.
   useEffect(() => {
-    if (left <= 0) {
-      void doSubmit();
-      return;
-    }
-    const id = setTimeout(() => setLeft((l) => l - 1), 1000);
-    return () => clearTimeout(id);
-  }, [left, doSubmit]);
+    const tick = () => {
+      const started = startedAt.current ?? Date.now();
+      const remainingMs = started + ROUND_MS - Date.now();
+      const secs = Math.max(0, Math.ceil(remainingMs / 1000));
+      setLeft(secs);
+      if (remainingMs <= 0) void doSubmit();
+    };
+    tick(); // sync immediately so first paint reflects real remaining time
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [doSubmit]);
 
   const retry = () => {
     setPhotoError(false);
@@ -177,6 +198,7 @@ export function EditorScreen() {
       tone={shownTone}
       onTier={setTier}
       onError={() => setPhotoError(true)}
+      captureRef={captureRef}
       style={{ position: 'absolute', inset: 0 }}
       radius={isDesktop ? 'var(--r)' : undefined}
     />
@@ -210,7 +232,7 @@ export function EditorScreen() {
           tierNote={tierNote}
           sliderList={sliderList}
           onReset={resetTone}
-          onSubmit={() => setConfirmOpen(true)}
+          onSubmit={openConfirm}
         />
       ) : (
         <PhoneLayout
@@ -221,7 +243,7 @@ export function EditorScreen() {
           tierNote={tierNote}
           sliderList={sliderList}
           onReset={resetTone}
-          onSubmit={() => setConfirmOpen(true)}
+          onSubmit={openConfirm}
         />
       )}
 
@@ -229,6 +251,7 @@ export function EditorScreen() {
         <ConfirmReveal
           photo={photo}
           tone={tone}
+          snapshot={snapshot}
           submitting={submitting}
           desktop={isDesktop}
           onKeepEditing={() => setConfirmOpen(false)}
@@ -328,6 +351,7 @@ function PhoneLayout(p: LayoutProps) {
 function ConfirmReveal({
   photo,
   tone,
+  snapshot,
   submitting,
   desktop,
   onKeepEditing,
@@ -335,15 +359,59 @@ function ConfirmReveal({
 }: {
   photo: DailyPhoto;
   tone: typeof DEFAULT_TONE;
+  /** PNG data-URL of the already-rendered editor frame, if capture succeeded. */
+  snapshot: string | null;
   submitting: boolean;
   desktop: boolean;
   onKeepEditing: () => void;
   onLock: () => void;
 }) {
+  // Reuse the editor's rendered frame as a flat <img> so we don't spin up two
+  // more WebGL contexts + master decodes. Fall back to a single live Photo only
+  // if capture wasn't available (e.g. tier-C device).
+  const backdrop = snapshot ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={snapshot}
+      alt=""
+      aria-hidden
+      style={{
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
+      }}
+    />
+  ) : (
+    <Photo photo={photo} tone={tone} style={{ position: 'absolute', inset: 0 }} />
+  );
+
+  const thumb = snapshot ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={snapshot}
+      alt=""
+      style={{
+        width: 96,
+        height: 120,
+        objectFit: 'cover',
+        borderRadius: 'var(--r-sm)',
+      }}
+    />
+  ) : (
+    <Photo
+      photo={photo}
+      tone={tone}
+      radius="var(--r-sm)"
+      style={{ width: 96, height: 120 }}
+    />
+  );
+
   return (
     <div className={styles.revealRoot}>
       <div className="onphoto" style={{ position: 'absolute', inset: 0 }}>
-        <Photo photo={photo} tone={tone} style={{ position: 'absolute', inset: 0 }} />
+        {backdrop}
       </div>
       <div className={styles.revealScrim} />
       <div
@@ -357,12 +425,7 @@ function ConfirmReveal({
         >
           {!desktop && <div className={styles.grabber} />}
           <div className="col center" style={{ gap: 16, textAlign: 'center' }}>
-            <Photo
-              photo={photo}
-              tone={tone}
-              radius="var(--r-sm)"
-              style={{ width: 96, height: 120 }}
-            />
+            {thumb}
             <div className="col" style={{ gap: 7 }}>
               <span className="h-md">Lock it in?</span>
               <span className="dim" style={{ fontSize: 14.5 }}>

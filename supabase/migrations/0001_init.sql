@@ -203,6 +203,37 @@ comment on table public.ai_players is
 -- rendered image is stored (PRD invariant #1: "An edit IS a small settings JSON").
 -- AI players appear as regular submissions with ai_model set (PRD §6.7).
 -- ---------------------------------------------------------------------------
+
+-- Partial server-side shape guard for settings.tone (PRD invariant #3).
+-- This is NOT the full validator: it does not clamp/round/normalize. It only
+-- rejects rows whose tone is missing a key, has a non-numeric value, or a value
+-- outside [-100,100]. The authoritative clamp lives in the Phase-2 Edge Function.
+-- IMMUTABLE + pure so it is safe to use directly inside a CHECK constraint.
+create or replace function public.tone_settings_valid(settings jsonb)
+returns boolean
+language sql
+immutable
+as $$
+  select settings ? 'tone'
+     and jsonb_typeof(settings -> 'tone') = 'object'
+     and not exists (
+       -- Any required key that is absent, non-numeric, or out of range fails.
+       select 1
+       from unnest(array[
+         'temp','tint','exposure','contrast','highlights',
+         'shadows','whites','blacks','vibrance','saturation'
+       ]) as k(key)
+       where jsonb_typeof(settings -> 'tone' -> k.key) is distinct from 'number'
+          or (settings -> 'tone' ->> k.key)::numeric < -100
+          or (settings -> 'tone' ->> k.key)::numeric >  100
+     );
+$$;
+
+comment on function public.tone_settings_valid(jsonb) is
+  'Partial shape guard for submissions.settings (PRD invariant #3): the 10 tone '
+  'keys exist, are numbers, and are in [-100,100]. NOT the authoritative clamp — '
+  'that is the Phase-2 Edge Function validator (clampToneSettings).';
+
 create table if not exists public.submissions (
   id                uuid        primary key default gen_random_uuid(),
 
@@ -225,7 +256,12 @@ create table if not exists public.submissions (
   -- The frozen edit settings JSON (PRD §6.2 example shape):
   -- { v:1, pipeline:"v1", engine:"webgl2", colorSpace:"srgb",
   --   photoId:"...", tone:{temp,tint,exposure,...} }
-  -- Validated and clamped server-side via clampToneSettings before insert.
+  -- NOTE (honesty): there is NO authoritative server-side range clamp here yet.
+  -- The CHECK below (submissions_tone_shape) is a *partial* defense: it only
+  -- asserts the 10 tone keys exist, are numeric, and fall in [-100,100]. It does
+  -- NOT round-to-int, drop unknown keys, or normalize the envelope — that is the
+  -- job of the Edge Function submit validator (clampToneSettings), which lands in
+  -- Phase 2. The client clampToneSettings call is convenience, not security.
   settings          jsonb       not null,
 
   -- Schema version of the settings JSON (currently 1). Allows future
@@ -255,7 +291,13 @@ create table if not exists public.submissions (
   -- A submission must be either human (player_id set) or AI (ai_model set),
   -- not neither (though NOT both is handled by application logic / validator).
   constraint submissions_player_or_ai
-    check (player_id is not null or ai_model is not null)
+    check (player_id is not null or ai_model is not null),
+
+  -- Partial server-side range guard (PRD invariant #3). See tone_settings_valid:
+  -- the 10 tone keys must exist, be numeric, and be in [-100,100]. This is a
+  -- cheap floor, NOT the authoritative clamp (that is the Phase-2 Edge Function).
+  constraint submissions_tone_shape
+    check (public.tone_settings_valid(settings))
 );
 
 comment on table public.submissions is
@@ -265,8 +307,10 @@ comment on table public.submissions is
 
 comment on column public.submissions.settings is
   'Frozen EditSettings JSON: {v:1, pipeline:"v1", engine:"webgl2", '
-  'colorSpace:"srgb", photoId:"...", tone:{...}}. '
-  'Validated + clamped before insert via clampToneSettings (PRD invariant #3).';
+  'colorSpace:"srgb", photoId:"...", tone:{...}}. The submissions_tone_shape '
+  'CHECK is only a partial guard (keys exist, numeric, in [-100,100]); the '
+  'authoritative clamp/round/normalize is the Phase-2 Edge Function validator '
+  '(clampToneSettings) — NOT enforced at this layer yet (PRD invariant #3).';
 
 comment on column public.submissions.like_count is
   'Denormalized; maintained exclusively by the votes insert/delete trigger. '
@@ -476,6 +520,17 @@ create policy "submissions: commit-reveal read"
 -- A logged-in user may insert exactly one submission per day (the UNIQUE
 -- constraint on (daily_photo_id, player_id) enforces one-per-day; RLS ensures
 -- player_id equals the authenticated user so they can't spoof another's id).
+--
+-- HONESTY NOTE — settings clamp/validation is NOT enforced here (PRD invariant #3):
+--   This policy authorizes WHO may insert (an authenticated caller writing their
+--   own player_id). It does NOT validate or clamp settings.tone ranges. The only
+--   server-side range defense today is the partial submissions_tone_shape CHECK
+--   on the table (keys exist, numeric, in [-100,100]) — it does not round to int,
+--   drop unknown keys, or normalize the envelope. The AUTHORITATIVE validator
+--   (clampToneSettings behind an Edge Function) lands in Phase 2; until then the
+--   client-side clampToneSettings call is convenience, NOT security. Do not rely
+--   on this insert policy for value integrity.
+--
 drop policy if exists "submissions: own insert"         on public.submissions;
 create policy "submissions: own insert"
   on public.submissions for insert

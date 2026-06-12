@@ -32,6 +32,9 @@ interface SharedRenderer {
 
 let shared: SharedRenderer | null = null;
 let initPromise: Promise<SharedRenderer | null> | null = null;
+// Bumped on every dispose so an init that was in flight at dispose time knows it
+// has been superseded and must not repopulate the singleton.
+let generation = 0;
 const urlCache = new Map<string, string>();
 
 function toneHash(tone: ToneSettings): string {
@@ -60,6 +63,7 @@ export async function initSharedRenderer(
   if (shared && shared.photoId === photoId) return shared;
   if (initPromise) return initPromise;
 
+  const gen = generation;
   initPromise = (async () => {
     try {
       const canvas = document.createElement('canvas');
@@ -70,15 +74,24 @@ export async function initSharedRenderer(
       if (!res.ok) throw new Error(`master fetch ${res.status}`);
       const buf = await res.arrayBuffer();
       const master = await decodeMaster16(buf);
-      renderer.setSource(master);
 
+      // If a dispose happened while we were fetching/decoding, this init is
+      // stale — drop it instead of repopulating the just-cleared singleton.
+      if (gen !== generation) {
+        renderer.destroy();
+        return null;
+      }
+
+      renderer.setSource(master);
       shared = { photoId, canvas, renderer, master };
       urlCache.clear();
       return shared;
     } catch {
       return null; // fall back to CSS tier
     } finally {
-      initPromise = null;
+      // Only clear the pointer if it still refers to THIS run (a dispose may
+      // have already nulled it and a newer init may be in flight).
+      if (gen === generation) initPromise = null;
     }
   })();
 
@@ -126,5 +139,10 @@ export function disposeSharedRenderer(): void {
     shared.renderer.destroy();
     shared = null;
   }
+  // Invalidate any in-flight init (generation bump) and clear the pointer so a
+  // stale initPromise that resolves AFTER dispose can't repopulate the singleton
+  // with a renderer nobody is tracking, and the next init starts fresh.
+  generation += 1;
+  initPromise = null;
   urlCache.clear();
 }

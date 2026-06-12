@@ -60,12 +60,14 @@ interface VoteRow {
 // CDN URL helper
 // ---------------------------------------------------------------------------
 // In production, variants are served from Supabase Storage behind a CDN.
-// The bucket name is 'photos' by convention.
-// Adjust SUPABASE_STORAGE_URL if using a custom CDN prefix.
+// Single point of coupling for the Storage bucket name — keep this the one place
+// the literal lives so it can be repointed without hunting through the adapter.
+export const PHOTOS_BUCKET = 'photos';
+
 function storageUrl(path: string): string {
   const supabase = getSupabaseClient();
   // getPublicUrl is synchronous and returns the full CDN URL.
-  const { data } = supabase.storage.from('photos').getPublicUrl(path);
+  const { data } = supabase.storage.from(PHOTOS_BUCKET).getPublicUrl(path);
   return data.publicUrl;
 }
 
@@ -211,10 +213,16 @@ export class SupabaseAdapter implements DataAdapter {
   // ---------------------------------------------------------------------------
   // submitEdit
   // ---------------------------------------------------------------------------
-  // Validates + clamps the tone settings, then inserts into submissions.
-  // The UNIQUE(daily_photo_id, player_id) constraint rejects duplicate submits
-  // (PRD §6.5). The Edge Function path (Phase 2+) wraps this for server-side
-  // authority; in Phase 0 we insert directly under RLS.
+  // Inserts an edit into submissions. The UNIQUE(daily_photo_id, player_id)
+  // constraint rejects duplicate submits (PRD §6.5).
+  //
+  // HONESTY (PRD invariant #3): the clampToneSettings call below is CLIENT-SIDE
+  // convenience, NOT security — a hostile client can bypass it entirely. The only
+  // current server-side defense is the partial submissions_tone_shape CHECK in
+  // 0001_init.sql (keys exist, numeric, in [-100,100]); it does not round/drop/
+  // normalize. The authoritative validator (clampToneSettings behind an Edge
+  // Function) lands in Phase 2 and will wrap this insert. Until then we insert
+  // directly under RLS with only that partial CHECK as a floor.
   // ---------------------------------------------------------------------------
   async submitEdit(
     photoId: string,
@@ -224,7 +232,7 @@ export class SupabaseAdapter implements DataAdapter {
     const { id: userId, displayName } = await this.getIdentity();
     const supabase = getSupabaseClient();
 
-    // Validate + clamp (PRD invariant #3).
+    // Client-side convenience clamp only (NOT security — see honesty note above).
     const clamped = clampToneSettings(tone);
 
     const settings: EditSettings = {

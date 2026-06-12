@@ -70,52 +70,23 @@ insert into public.daily_photos (
 on conflict (play_date) do nothing;
 
 -- ---------------------------------------------------------------------------
--- Seed "player" profiles (fake UUIDs — these are not real auth users)
+-- Seed "human" identity model — IMPORTANT (constraint correctness)
 -- ---------------------------------------------------------------------------
--- We bypass the FK to auth.users here by inserting directly (dev only).
--- In production, the trigger handles profile creation.
+-- profiles.id has an FK to auth.users(id). On a fresh project there are NO
+-- auth.users rows, so inserting fake profile rows ALWAYS raises
+-- foreign_key_violation and gets swallowed — leaving zero profiles. That means
+-- a "human" submission (player_id set, ai_model null) would either fail its own
+-- FK, or — if player_id were left null — violate the
+-- submissions_player_or_ai CHECK (player_id IS NOT NULL OR ai_model IS NOT NULL),
+-- aborting `supabase db push`.
+--
+-- Fix: the six "human-style" seed submissions below are tagged with a sentinel
+-- ai_model = 'seed' (so the CHECK is satisfied without any auth.users/profiles
+-- rows). They are NOT real AI players. The dev gallery UI MAY special-case the
+-- 'seed' sentinel to hide the AI badge so these read as ordinary human edits.
+-- We therefore do NOT attempt to insert seed profiles at all — there is nothing
+-- to anchor them to on a fresh project.
 -- ---------------------------------------------------------------------------
-
--- Temporarily disable the trigger that requires auth.users FK on insert
--- (the trigger is on auth.users, not profiles; the FK constraint is the issue).
--- We use a DO block to catch and ignore FK violations gracefully.
-do $$
-declare
-  seed_ids uuid[] := array[
-    'b0000000-0000-0000-0000-000000000001'::uuid,
-    'b0000000-0000-0000-0000-000000000002'::uuid,
-    'b0000000-0000-0000-0000-000000000003'::uuid,
-    'b0000000-0000-0000-0000-000000000004'::uuid,
-    'b0000000-0000-0000-0000-000000000005'::uuid,
-    'b0000000-0000-0000-0000-000000000006'::uuid,
-    'b0000000-0000-0000-0000-000000000007'::uuid,
-    'b0000000-0000-0000-0000-000000000008'::uuid
-  ];
-  seed_names text[] := array[
-    'CrimsonOtter47',
-    'TwilightFalcon',
-    'MidnightHeron22',
-    'SilverMaple9',
-    'CoralSparrow',
-    'OceanDrifter88',
-    'GildedRaven',
-    'VioletPebble3'
-  ];
-  i int;
-begin
-  for i in 1..array_length(seed_ids, 1) loop
-    begin
-      insert into public.profiles (id, is_anonymous, display_name)
-      values (seed_ids[i], true, seed_names[i])
-      on conflict (id) do nothing;
-    exception when foreign_key_violation then
-      -- Skip — auth.users row doesn't exist in dev/seed context.
-      -- The profile row won't be inserted, but submission seeds below
-      -- reference ai_model (not player_id) for most rows.
-      null;
-    end;
-  end loop;
-end $$;
 
 -- ---------------------------------------------------------------------------
 -- ai_players seed rows
@@ -130,7 +101,11 @@ on conflict (model_id) do nothing;
 -- Seed submissions
 -- ---------------------------------------------------------------------------
 -- Eight varied edits that populate the gallery in local dev.
--- Two are AI players; six are "human" (seed profiles).
+-- Two are real AI players (claude-opus-4.8 / gemini-3-flash). The other six are
+-- "human-style" edits tagged with the sentinel ai_model = 'seed' (no player_id,
+-- no profiles/auth.users row required) so they satisfy the
+-- submissions_player_or_ai CHECK on a fresh project. The dev gallery UI may
+-- hide the AI badge for the 'seed' sentinel so they read as human edits.
 -- like_count is set directly here (bypassing the trigger) since we don't
 -- insert real votes rows for seed data.
 -- All tone values have been validated/clamped to [-100,100] integers.
@@ -151,8 +126,8 @@ insert into public.submissions (
 (
   'c0000000-0000-0000-0000-000000000001'::uuid,
   'a0000000-0000-0000-0000-000000000001'::uuid,
-  null,               -- no player_id (seed player without auth.users row)
-  null,
+  null,               -- no player_id (seed has no auth.users row)
+  'seed',             -- sentinel: human-style seed edit (dev UI may hide AI badge)
   '{
     "v": 1, "pipeline": "v1", "engine": "webgl2", "colorSpace": "srgb",
     "photoId": "dev-001",
@@ -170,7 +145,7 @@ insert into public.submissions (
   'c0000000-0000-0000-0000-000000000002'::uuid,
   'a0000000-0000-0000-0000-000000000001'::uuid,
   null,
-  null,
+  'seed',
   '{
     "v": 1, "pipeline": "v1", "engine": "webgl2", "colorSpace": "srgb",
     "photoId": "dev-001",
@@ -188,7 +163,7 @@ insert into public.submissions (
   'c0000000-0000-0000-0000-000000000003'::uuid,
   'a0000000-0000-0000-0000-000000000001'::uuid,
   null,
-  null,
+  'seed',
   '{
     "v": 1, "pipeline": "v1", "engine": "webgl2", "colorSpace": "srgb",
     "photoId": "dev-001",
@@ -206,7 +181,7 @@ insert into public.submissions (
   'c0000000-0000-0000-0000-000000000004'::uuid,
   'a0000000-0000-0000-0000-000000000001'::uuid,
   null,
-  null,
+  'seed',
   '{
     "v": 1, "pipeline": "v1", "engine": "webgl2", "colorSpace": "srgb",
     "photoId": "dev-001",
@@ -224,7 +199,7 @@ insert into public.submissions (
   'c0000000-0000-0000-0000-000000000005'::uuid,
   'a0000000-0000-0000-0000-000000000001'::uuid,
   null,
-  null,
+  'seed',
   '{
     "v": 1, "pipeline": "v1", "engine": "webgl2", "colorSpace": "srgb",
     "photoId": "dev-001",
@@ -242,7 +217,7 @@ insert into public.submissions (
   'c0000000-0000-0000-0000-000000000006'::uuid,
   'a0000000-0000-0000-0000-000000000001'::uuid,
   null,
-  null,
+  'seed',
   '{
     "v": 1, "pipeline": "v1", "engine": "webgl2", "colorSpace": "srgb",
     "photoId": "dev-001",

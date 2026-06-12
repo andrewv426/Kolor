@@ -19,12 +19,37 @@ import type { DailyPhoto } from '@/lib/types';
 import {
   createV1Renderer,
   decodeMaster16,
+  type DecodedMaster,
   type V1Renderer,
 } from '@/lib/render';
 import { toCssFilter } from './cssFilter';
 import styles from './Photo.module.css';
 
 export type RenderTier = 'A' | 'B' | 'C';
+
+// ---------------------------------------------------------------------------
+// Module-level decoded-master cache (promise cache, keyed by URL).
+// The ~17MB master16 PNG is fetched + UPNG-decoded ONCE per session per URL,
+// not once per <Photo> mount. Every Photo (editor + the two ConfirmReveal
+// previews) shares the same decode. The promise is cached so concurrent mounts
+// coalesce onto a single in-flight fetch+decode; a rejected decode is evicted so
+// a later mount can retry.
+const masterCache = new Map<string, Promise<DecodedMaster>>();
+
+function getDecodedMaster(url: string): Promise<DecodedMaster> {
+  let p = masterCache.get(url);
+  if (!p) {
+    p = (async () => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`master ${res.status}`);
+      const buf = await res.arrayBuffer();
+      return decodeMaster16(buf);
+    })();
+    p.catch(() => masterCache.delete(url)); // evict failures so retry can refetch
+    masterCache.set(url, p);
+  }
+  return p;
+}
 
 interface PhotoProps {
   photo: DailyPhoto;
@@ -39,6 +64,13 @@ interface PhotoProps {
   onTier?: (tier: RenderTier) => void;
   /** Fired when the photo genuinely can't load (tier-C preview also failed). */
   onError?: () => void;
+  /**
+   * Optional capture handle. Photo sets `.current` to a function that snapshots
+   * the live WebGL canvas to a PNG data-URL (or null on tier C / before load).
+   * Lets a caller reuse an already-rendered frame instead of mounting another
+   * WebGL context (e.g. the ConfirmReveal preview).
+   */
+  captureRef?: React.MutableRefObject<(() => string | null) | null>;
   children?: React.ReactNode;
 }
 
@@ -51,6 +83,7 @@ export function Photo({
   scrim,
   onTier,
   onError,
+  captureRef,
   children,
 }: PhotoProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -77,10 +110,7 @@ export function Photo({
 
     (async () => {
       try {
-        const res = await fetch(photo.master16Url);
-        if (!res.ok) throw new Error(`master ${res.status}`);
-        const buf = await res.arrayBuffer();
-        const master = await decodeMaster16(buf);
+        const master = await getDecodedMaster(photo.master16Url);
         if (cancelled) return;
         canvas.width = master.width;
         canvas.height = master.height;
@@ -112,6 +142,27 @@ export function Photo({
     const r = rendererRef.current;
     if (r && tier !== 'C') r.render(tone);
   }, [tone, tier]);
+
+  // Expose a snapshot fn to the optional captureRef. We re-issue the draw right
+  // before reading the pixels so the drawing buffer is guaranteed populated even
+  // without preserveDrawingBuffer (render + toDataURL run in the same task).
+  useEffect(() => {
+    if (!captureRef) return;
+    captureRef.current = () => {
+      const r = rendererRef.current;
+      const canvas = canvasRef.current;
+      if (!r || !canvas || tier === 'C') return null;
+      try {
+        r.render(tone);
+        return canvas.toDataURL('image/png');
+      } catch {
+        return null;
+      }
+    };
+    return () => {
+      if (captureRef) captureRef.current = null;
+    };
+  }, [captureRef, tone, tier]);
 
   const css = tier === 'C' ? toCssFilter(tone) : null;
 
