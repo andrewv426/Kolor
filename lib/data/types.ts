@@ -1,0 +1,54 @@
+/**
+ * SHARED CONTRACT — the data layer. Two implementations sit behind this one
+ * interface: LocalAdapter (localStorage + seeded gallery; the default when
+ * Supabase env vars are missing/placeholder) and SupabaseAdapter (real code
+ * paths, inert until keys exist). UI imports `getAdapter()` and never branches
+ * on the mode itself.
+ *
+ * Owned by the scaffold agent. The backend agent implements these in
+ * lib/data/index.ts (+ adapters); other agents import the interface.
+ */
+
+import type { DailyPhoto, Submission, ToneSettings } from '@/lib/types';
+
+export interface DataAdapter {
+  mode: 'local' | 'supabase';
+
+  /** Today's puzzle photo + its variant URLs (one global puzzle/day, UTC). */
+  getToday(): Promise<DailyPhoto>;
+
+  /** The stable anon-first identity (Supabase anon user id in supabase mode). */
+  getIdentity(): Promise<{ id: string; displayName: string }>;
+
+  /** Commit-reveal gate input: has this user already submitted today? */
+  hasSubmittedToday(photoId: string): Promise<boolean>;
+
+  /** This user's own submission for the photo, or null if not yet submitted. */
+  getMySubmission(photoId: string): Promise<Submission | null>;
+
+  /**
+   * Insert this user's edit. Settings are validated/clamped server-side via the
+   * shared clampToneSettings validator. One submission/day (UNIQUE) — a second
+   * call for the same photo rejects.
+   */
+  submitEdit(
+    photoId: string,
+    tone: ToneSettings,
+    timeTakenMs: number,
+  ): Promise<Submission>;
+
+  /**
+   * The reveal gallery for a photo. Server-enforced commit-reveal: returns
+   * 403/empty until this user's own submission row exists (PRD invariant #5).
+   */
+  getGallery(photoId: string): Promise<Submission[]>;
+
+  /** Toggle this user's like on a submission (one like/edit, UNIQUE). */
+  toggleLike(submissionId: string): Promise<{ liked: boolean; likeCount: number }>;
+}
+
+/**
+ * Returns the active adapter. Resolves to LocalAdapter when Supabase env vars
+ * are missing or still placeholders; SupabaseAdapter otherwise.
+ */
+export declare function getAdapter(): DataAdapter;
