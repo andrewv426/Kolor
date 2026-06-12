@@ -1,0 +1,52 @@
+/* Photo — image/canvas + tier-C filter overlays + scrim. Ported from hifi.css
+   `.photo` block. Tokens only. */
+
+.photo {
+  position: relative;
+  overflow: hidden;
+  background: #0b0a09;
+  isolation: isolate;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.ov {
+  position: absolute;
+  inset: 0;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    rgba(8, 7, 6, 0.82) 2%,
+    rgba(8, 7, 6, 0.28) 32%,
+    transparent 60%
+  );
+}
+
+.scrimSoft {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(8, 7, 6, 0.6), transparent 50%);
+}

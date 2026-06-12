@@ -1,0 +1,353 @@
+/* ============================================================================
+ * Shared UI primitives — ported from design_handoff/hifi/hifi.css.
+ * Plain (non-module) utility classes used across all game screens: type scale,
+ * buttons, badges, pills, timer, tabset, cards/sheets, helpers. Imported ONCE by
+ * components/AppShell.tsx. Uses ONLY globals.css tokens.
+ *
+ * (Kept separate from app/globals.css, which is scaffold-owned.)
+ * ==========================================================================*/
+
+/* ---------- type ---------- */
+.h-xl {
+  font-family: var(--font-display-stack);
+  font-weight: 400;
+  font-size: clamp(36px, 5.6vw, 60px);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.h-lg {
+  font-family: var(--font-display-stack);
+  font-weight: 400;
+  font-size: clamp(29px, 3.8vw, 40px);
+  line-height: 1.04;
+  letter-spacing: -0.005em;
+}
+.h-md {
+  font-family: var(--font-display-stack);
+  font-weight: 400;
+  font-size: 24px;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+/* eyebrow = quiet editorial label, NOT a tracked-caps mono kicker */
+.eyebrow {
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.dim {
+  color: var(--ink-2);
+}
+.dim3 {
+  color: var(--ink-3);
+}
+
+/* ---------- buttons ---------- */
+.btn {
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--line-2);
+  white-space: nowrap;
+  background: var(--panel-2);
+  color: var(--ink);
+  border-radius: var(--r-sm);
+  padding: 13px 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+}
+.btn:hover {
+  border-color: var(--line-2);
+  background: var(--raise);
+}
+.btn:active {
+  transform: scale(0.975);
+}
+.btn.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+  font-weight: 700;
+}
+.btn.primary:hover {
+  filter: brightness(1.06);
+}
+.btn.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-2);
+}
+.btn.ghost:hover {
+  color: var(--ink);
+  background: var(--panel-2);
+}
+.btn.block {
+  width: 100%;
+}
+.btn.lg {
+  padding: 16px 22px;
+  font-size: 17px;
+}
+.btn.sm {
+  padding: 8px 13px;
+  font-size: 14px;
+  border-radius: var(--r-xs);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .btn:active {
+    transform: none;
+  }
+}
+
+/* ---------- badges / pills ---------- */
+.badge {
+  font-family: var(--mono);
+  font-feature-settings: 'tnum';
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  border: 0;
+  border-radius: 5px;
+  padding: 4px 8px;
+  color: var(--ink-2);
+  background: var(--panel-2);
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+.onphoto .badge:not(.solid):not(.accent):not(.ai) {
+  background: rgba(10, 9, 7, 0.45);
+  color: #ece6d9;
+  backdrop-filter: blur(3px);
+}
+.badge.solid {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: transparent;
+}
+.badge.accent {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+}
+.badge.ai {
+  border: 1px dashed var(--accent);
+  background: transparent;
+  color: var(--accent);
+}
+.onphoto .badge.ai {
+  background: rgba(10, 9, 7, 0.5);
+  backdrop-filter: blur(3px);
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 5px 12px;
+  background: color-mix(in srgb, var(--panel) 60%, transparent);
+}
+
+/* ---------- timer ---------- */
+.timer {
+  font-family: var(--mono);
+  font-feature-settings: 'tnum';
+  font-weight: 500;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  border: 1px solid var(--line-2);
+  border-radius: 9px;
+  padding: 7px 11px;
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+}
+.timer.warn {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ---------- cards / sheets / dividers ---------- */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.sheet {
+  background: var(--panel);
+  border-top: 1px solid var(--line-2);
+  border-radius: 22px 22px 0 0;
+}
+.divider {
+  height: 1px;
+  background: var(--line);
+}
+
+/* ---------- inputs ---------- */
+.input {
+  font: inherit;
+  width: 100%;
+  background: var(--panel-2);
+  color: var(--ink);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+}
+.input::placeholder {
+  color: var(--ink-3);
+}
+
+/* ---------- tabset ---------- */
+.tabset {
+  display: inline-flex;
+  gap: 4px;
+  background: var(--panel-2);
+  padding: 4px;
+  border-radius: 99px;
+}
+.tabset .t {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  padding: 6px 13px;
+  border-radius: 99px;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+}
+.tabset .t.on {
+  background: var(--raise);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+/* ---------- avatar / heart ---------- */
+.av {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--panel-2));
+  display: inline-block;
+  flex: 0 0 auto;
+  border: 1px solid var(--line-2);
+}
+.heart {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-feature-settings: 'tnum';
+  font-size: 12px;
+  color: #fff;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* ---------- layout helpers ---------- */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.between {
+  justify-content: space-between;
+}
+.col {
+  display: flex;
+  flex-direction: column;
+}
+.wrap {
+  flex-wrap: wrap;
+}
+.fill1 {
+  flex: 1;
+}
+.center {
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---------- screen frame ---------- */
+.screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* ---------- overlays / modals ---------- */
+.ov-back {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(8, 7, 6, 0.66);
+  backdrop-filter: blur(3px);
+  animation: ovfade 0.16s ease;
+}
+.ov-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  padding: 22px;
+  box-shadow: var(--shadow);
+  animation: ovrise 0.2s ease;
+}
+@keyframes ovfade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ovrise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ov-back,
+  .ov-card {
+    animation: none;
+  }
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.btn:focus-visible,
+.input:focus-visible,
+.tabset .t:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

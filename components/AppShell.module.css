@@ -1,0 +1,29 @@
+/* Device frame. Phone (≤430px): a single full-bleed column with a hairline +
+   shadow edge, matching the prototype's `.viewport.phone`. Desktop: full width,
+   screens cap their own content via --maxw. */
+
+.stage {
+  min-height: 100dvh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  background: var(--bg);
+}
+
+.viewport {
+  width: 100%;
+  position: relative;
+  background: var(--bg);
+}
+
+/* On wide phones / narrow tablets, keep a contained phone column look. The true
+   phone breakpoint is ≤430px; between 431–760 we still present the phone frame
+   centered so the full-bleed layout never stretches awkwardly. */
+@media (max-width: 760px) {
+  .viewport {
+    max-width: 430px;
+    min-height: 100dvh;
+    box-shadow: 0 0 0 1px var(--line);
+    overflow: hidden;
+  }
+}

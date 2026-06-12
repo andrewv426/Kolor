@@ -1,0 +1,133 @@
+/* Slider — ported from hifi.css `.slider` block. */
+
+.slider {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lab {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.nm {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.vl {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.act {
+  color: var(--accent);
+}
+
+.track {
+  position: relative;
+  height: 26px;
+  display: flex;
+  align-items: center;
+}
+
+.rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 99px;
+  background: var(--line-2);
+}
+
+.fill {
+  position: absolute;
+  height: 3px;
+  border-radius: 99px;
+  background: var(--accent);
+}
+
+.tick {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1px;
+  height: 9px;
+  transform: translate(-50%, -50%);
+  background: var(--line-2);
+}
+
+.track input[type='range'] {
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  width: calc(100% + 16px);
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 26px;
+  cursor: grab;
+}
+
+.track input[type='range']:active {
+  cursor: grabbing;
+}
+
+.track input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: transparent;
+  border: 0;
+}
+
+.track input[type='range']::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: transparent;
+  border: 0;
+}
+
+.knob {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 2px solid var(--bg);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  transition: transform 0.1s ease;
+}
+
+.track input[type='range']:active ~ .knob {
+  transform: translate(-50%, -50%) scale(1.12);
+}
+
+/* read-only recipe variant */
+.read .track {
+  height: 16px;
+}
+.read .rail,
+.read .fill {
+  height: 2.5px;
+}
+.read .knob {
+  width: 11px;
+  height: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knob {
+    transition: none;
+  }
+}

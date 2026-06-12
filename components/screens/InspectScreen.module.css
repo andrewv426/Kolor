@@ -1,0 +1,61 @@
+.scroll {
+  overflow-y: auto;
+}
+
+.holdBtn {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  color: #f2eee5;
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(8, 7, 6, 0.4);
+}
+
+.recipe {
+  display: grid;
+}
+
+.comparisonOnly {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r-sm);
+}
+
+/* desktop */
+.topNavDesk {
+  padding: 16px 24px;
+}
+
+.deskGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  padding: 8px 40px 40px;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  width: 100%;
+  align-items: start;
+}
+
+/* phone */
+.topNavPhone {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  padding: 12px 14px;
+  z-index: 5;
+}
+
+.backPhone {
+  color: #fff;
+  background: rgba(8, 7, 6, 0.4);
+}
+
+.phoneBody {
+  gap: 18px;
+  padding: 16px 18px 28px;
+  background: var(--panel);
+}
