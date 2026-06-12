@@ -50,3 +50,48 @@
   pointer-events: none;
   background: linear-gradient(to top, rgba(8, 7, 6, 0.6), transparent 50%);
 }
+
+/* Loading-progress overlay — master streaming/decoding over the recessed
+   letterbox. Darkroom tokens only; thin accent bar + mono percentage. */
+.loading {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  background: var(--bg-2, #0e0d0b);
+  pointer-events: none;
+}
+
+.loadingLabel {
+  font-family: var(--mono, 'DM Mono', monospace);
+  font-size: 13px;
+  letter-spacing: -0.01em;
+  font-feature-settings: 'tnum';
+  color: var(--ink-2, #a8a192);
+}
+
+.loadingTrack {
+  width: min(220px, 60%);
+  height: 2px;
+  border-radius: 99px;
+  background: var(--line, rgba(245, 238, 225, 0.11));
+  overflow: hidden;
+}
+
+.loadingBar {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--accent, #e0a75c);
+  transition: width 0.18s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loadingBar {
+    transition: none;
+  }
+}

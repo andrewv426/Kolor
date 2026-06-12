@@ -7,6 +7,12 @@
 --       or:  paste into the Supabase SQL editor.
 -- Every CREATE TABLE is idempotent via IF NOT EXISTS; the trigger
 -- and RLS policies are dropped-and-recreated for safe re-runs.
+--
+-- AMENDED in place 2026-06-12 (pre-launch): added daily_photos.master16_hi_path
+-- and master16_lo_path (nullable) for the two-plane WebP delivery encoding
+-- (PRD §6.2.1 amendment). Pre-launch, so the column was added to this migration
+-- rather than a new one; both columns are nullable so any pre-amendment row
+-- (or a photo not yet re-derived) is still valid and falls back to the PNG.
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -118,6 +124,14 @@ create table if not exists public.daily_photos (
   master16_path       text        not null,
   preview8_path       text        not null,
   ai768_path          text        not null,
+
+  -- Two-plane WebP delivery encoding (PRD §6.2.1 amendment 2026-06-12).
+  -- hi = top byte of each 16-bit RGB sample; lo = top nibble of the low byte
+  -- replicated to a byte (12-bit delivery). The editor fetches these (≈42% of
+  -- the PNG) and recombines client-side; nullable so rows without planes fall
+  -- back to master16_path. master16.png stays the canonical/archival artifact.
+  master16_hi_path    text,
+  master16_lo_path    text,
 
   -- Raw pixel dimensions of the master16 variant (width × height in px).
   master16_width      int         not null default 0,

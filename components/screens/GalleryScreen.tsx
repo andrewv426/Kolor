@@ -64,7 +64,7 @@ export function GalleryScreen() {
       setLoading(false);
 
       // Spin up the single shared offscreen renderer for tiles.
-      await initSharedRenderer(today.id, today.master16Url);
+      await initSharedRenderer(today);
       if (alive) setRendererReady(true);
     })();
     return () => {

@@ -49,10 +49,19 @@ export interface DailyPhoto {
   id: string;
   dayNumber: number;
   theme: string;
+  /** Canonical/archival 16-bit PNG (UPNG decode path; delivery fallback). */
   master16Url: string;
   preview8Url: string;
   width: number;
   height: number;
+  /**
+   * Optional two-plane WebP delivery encoding (PRD §6.2.1 amendment 2026-06-12).
+   * When present, the editor fetches hi+lo planes (≈42% of the PNG) and decodes
+   * via `decodeMaster16FromPlanes`, falling back to `master16Url` (the PNG) when
+   * absent or on decode failure. SHIPPED encoding = 12-bit two-plane WebP.
+   */
+  master16HiUrl?: string;
+  master16LoUrl?: string;
 }
 
 /** One player's edit as surfaced to the gallery/inspect UI. */

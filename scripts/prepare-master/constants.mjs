@@ -136,3 +136,45 @@ export const FFMPEG_DETERMINISM_FLAGS = [
 // ORIGINAL 8-bit decode (before any processing). Default threshold 2%.
 // ---------------------------------------------------------------------------
 export const DEFAULT_CLIP_THRESHOLD_PCT = 2.0;
+
+// ---------------------------------------------------------------------------
+// Delivery encoding (PRD §6.2.1 amendment 2026-06-12) — two-plane WebP.
+//
+// master16.png stays the canonical/archival artifact (CI determinism + future
+// re-derivations). For WEB DELIVERY we split each 16-bit RGB sample of the
+// canonical master into two 8-bit lossless-WebP planes so the editor loads fast
+// while keeping (nearly) all the editing headroom. Both planes are RGB
+// (3-channel), opaque, lossless WebP. The recombination math lives in
+// planes.mjs (the single definition; index.mjs and the verify script both
+// import it) so the packing can never diverge.
+//
+// SHIPPED ENCODING: 12-bit (the 16-bit two-plane lo plane measured 66.6% of the
+// PNG — the high-entropy low byte does not compress; 12-bit lands at 41.7%).
+//   hi plane[i] = (v >> 8) & 0xFF                 (top byte — visually the photo)
+//   lo plane[i] = (nib << 4) | nib, nib=(v>>4)&0xF (top nibble of low byte,
+//                                                    replicated to a full byte —
+//                                                    deterministic 0..255)
+// Decode recombination (12-bit):
+//   nib = loPlane[i] >> 4 ;  v = (hiPlane[i] << 8) | (nib << 4) | nib
+// This is a pure function of the canonical master16 samples; it is NOT
+// bit-identical to the raw PNG (the bottom 4 bits are dropped). The equivalence
+// proof is therefore against the DEFINED 12-bit quantization of the PNG samples
+// (see planes.mjs `quantize12` + the manifest `delivery.recombinesTo`).
+//
+// Both plane WebPs are part of the pipeline-v1 freeze (same v2 rule applies).
+// ---------------------------------------------------------------------------
+export const DELIVERY_ENCODING = '12bit-two-plane-webp';
+
+export const PLANES = {
+  hi: { file: 'master16-hi.webp', plane: 'hi' },
+  lo: { file: 'master16-lo.webp', plane: 'lo' },
+};
+
+// Lossless WebP encoder params for both planes (frozen). near-lossless OFF;
+// effort pinned for deterministic, repeatable bytes.
+export const PLANE_WEBP = {
+  lossless: true,
+  effort: 6,
+  // smartSubsample is irrelevant for lossless but pinned for clarity.
+  smartSubsample: false,
+};
