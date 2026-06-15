@@ -19,6 +19,7 @@ import { Photo } from '@/components/Photo';
 import { Slider } from '@/components/Slider';
 import { Avatar } from '@/components/Avatar';
 import { useIsDesktop } from '@/components/useIsDesktop';
+import { useHoldCompare } from '@/components/useHoldCompare';
 import styles from './InspectScreen.module.css';
 
 export function InspectScreen({ submissionId }: { submissionId: string }) {
@@ -28,7 +29,7 @@ export function InspectScreen({ submissionId }: { submissionId: string }) {
   const [photo, setPhoto] = useState<DailyPhoto | null>(null);
   const [sub, setSub] = useState<Submission | null>(null);
   const [submittedToday, setSubmittedToday] = useState(false);
-  const [compare, setCompare] = useState(false);
+  const { held: compare, holdHandlers } = useHoldCompare();
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
@@ -102,17 +103,6 @@ export function InspectScreen({ submissionId }: { submissionId: string }) {
   const who = sub.aiModel ?? sub.displayName;
   const shownTone = compare ? DEFAULT_TONE : sub.settings.tone;
 
-  const holdHandlers = {
-    onMouseDown: () => setCompare(true),
-    onMouseUp: () => setCompare(false),
-    onMouseLeave: () => setCompare(false),
-    onTouchStart: (e: React.TouchEvent) => {
-      e.preventDefault();
-      setCompare(true);
-    },
-    onTouchEnd: () => setCompare(false),
-  };
-
   const photoBlock = (
     <div className="onphoto" style={{ position: 'relative' }}>
       <Photo
@@ -121,7 +111,11 @@ export function InspectScreen({ submissionId }: { submissionId: string }) {
         radius={isDesktop ? 'var(--r)' : undefined}
         style={{ width: '100%', aspectRatio: isDesktop ? '4 / 5' : '1 / 1' }}
       />
-      <button className={`btn ghost sm ${styles.holdBtn}`} {...holdHandlers}>
+      <button
+        type="button"
+        className={`btn ghost sm ${styles.holdBtn}`}
+        {...holdHandlers}
+      >
         {compare ? 'Original' : 'Hold for original'}
       </button>
     </div>

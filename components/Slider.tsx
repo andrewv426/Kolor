@@ -28,9 +28,29 @@ export function Slider({ toneKey, value, onChange, read }: SliderProps) {
     <div className={`${styles.slider} ${read ? styles.read : ''}`}>
       <div className={styles.lab}>
         <span className={styles.nm}>{meta.label}</span>
-        <span className={`${styles.vl} mono ${value !== 0 ? styles.act : ''}`}>
-          {display}
-        </span>
+        {read ? (
+          // Recipe view: bare value readout — DOM identical to pre-reset layout.
+          <span className={`${styles.vl} mono ${value !== 0 ? styles.act : ''}`}>
+            {display}
+          </span>
+        ) : (
+          // Editor: value + a per-slider reset (zeros just this slider).
+          <span className={styles.labRight}>
+            <span className={`${styles.vl} mono ${value !== 0 ? styles.act : ''}`}>
+              {display}
+            </span>
+            <button
+              type="button"
+              className={styles.reset}
+              onClick={() => onChange?.(0)}
+              disabled={value === 0}
+              aria-label={`Reset ${meta.label} to 0`}
+              title="Reset to 0"
+            >
+              <ResetIcon />
+            </button>
+          </span>
+        )}
       </div>
       <div
         className={styles.track}
@@ -56,5 +76,25 @@ export function Slider({ toneKey, value, onChange, read }: SliderProps) {
         <span className={styles.knob} style={{ left: `${pct}%` }} />
       </div>
     </div>
+  );
+}
+
+/** Circular-arrow "reset to default" glyph (Feather `rotate-ccw`). */
+function ResetIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="13"
+      height="13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="1 4 1 10 7 10" />
+      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+    </svg>
   );
 }
