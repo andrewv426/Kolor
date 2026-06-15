@@ -27,6 +27,50 @@
   color: var(--accent);
 }
 
+/* value readout + per-slider reset, grouped at the label's right edge */
+.labRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Per-slider reset (editor only): zeros just this slider. Dimmed + disabled
+   while the slider is already at 0 (nothing to reset), so the icon stays
+   visible on every row and brightens once the slider is moved. */
+.reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  /* negative margins keep the 22px hit target from inflating the label row
+     height and pull the glyph flush to the slider's right edge */
+  margin: -5px -5px -5px 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease, opacity 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.reset:hover {
+  color: var(--ink);
+  background: var(--panel-2);
+}
+.reset:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+.reset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.reset svg {
+  display: block;
+}
+
 .track {
   position: relative;
   height: 26px;

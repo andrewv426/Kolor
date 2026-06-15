@@ -21,6 +21,7 @@ import { Photo, type RenderTier } from '@/components/Photo';
 import { Slider } from '@/components/Slider';
 import { useAppState } from '@/components/AppState';
 import { useIsDesktop } from '@/components/useIsDesktop';
+import { useHoldCompare } from '@/components/useHoldCompare';
 import { fmtClock } from '@/components/time';
 import { DEFAULT_TONE } from '@/lib/types';
 import styles from './EditorScreen.module.css';
@@ -36,7 +37,7 @@ export function EditorScreen() {
 
   const [photo, setPhoto] = useState<DailyPhoto | null>(null);
   const [left, setLeft] = useState(ROUND_SECONDS);
-  const [compare, setCompare] = useState(false);
+  const { held: compare, holdHandlers } = useHoldCompare();
   const [tier, setTier] = useState<RenderTier | null>(null);
   const [photoError, setPhotoError] = useState(false);
   const [photoKey, setPhotoKey] = useState(0);
@@ -153,15 +154,9 @@ export function EditorScreen() {
 
   const compareBtn = (
     <button
+      type="button"
       className={`btn ghost sm ${styles.compareBtn}`}
-      onMouseDown={() => setCompare(true)}
-      onMouseUp={() => setCompare(false)}
-      onMouseLeave={() => setCompare(false)}
-      onTouchStart={(e) => {
-        e.preventDefault();
-        setCompare(true);
-      }}
-      onTouchEnd={() => setCompare(false)}
+      {...holdHandlers}
     >
       {compare ? 'Before' : isDesktop ? 'Hold to compare' : 'Tap to compare'}
     </button>

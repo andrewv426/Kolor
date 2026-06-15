@@ -13,6 +13,9 @@
   color: #f2eee5;
   border-color: rgba(255, 255, 255, 0.22);
   background: rgba(8, 7, 6, 0.35);
+  /* press-and-hold compare uses pointer capture (useHoldCompare); keep a touch
+     hold from being reinterpreted as a scroll/pan, which would cancel the hold */
+  touch-action: none;
 }
 
 /* ---- desktop ---- */
