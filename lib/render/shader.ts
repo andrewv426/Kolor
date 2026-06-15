@@ -36,6 +36,14 @@
  * belt-and-braces. Clarity (op 11) is inert in v1 (UI passes 0); v1 ships
  * without the blur pass so `blur(c) == c` and the op is exact identity at any n.
  *
+ * Texture orientation (frozen, §6.2.1; 2026-06-15 pre-launch amendment).
+ * UNPACK_FLIP_Y_WEBGL is pinned false, so image row 0 is texture t=0 (display
+ * top) and the last row is t=1. The full-screen triangle maps screen-top to
+ * v_uv.y≈1, so the sample flips V — `texture(u_tex, vec2(v_uv.x, 1.0 - v_uv.y))`
+ * — to put image row 0 at display top for ALL surfaces. The dither reads
+ * gl_FragCoord (destination pixel), not the fetch coordinate, so determinism is
+ * unaffected.
+ *
  * Every per-op constant, mask curve, pivot, and weight below is transcribed
  * verbatim from §6.2.1's "Frozen per-op formulas" subsection. Changing ANY of
  * them forces pipeline v2 (freeze rule, §6.2.1) — post-launch.
@@ -196,7 +204,15 @@ float whitesFoot(float x, float n) {
 void main() {
   // Sample raw sRGB-encoded values with LINEAR filtering (no hardware sRGB),
   // then decode to linear light in-shader.
-  vec3 enc = texture(u_tex, v_uv).rgb;
+  // Texture orientation (frozen, §6.2.1; 2026-06-15 pre-launch amendment):
+  // UNPACK_FLIP_Y_WEBGL is pinned false, so texture row t=0 is image row 0 (the
+  // image TOP) and t=1 is the last data row (image BOTTOM). The full-screen
+  // triangle maps screen-top to v_uv.y≈1, so sampling at v_uv directly would put
+  // image-bottom at screen-top (upside-down). Flip V at the sample so image row 0
+  // renders at display top for ALL surfaces (editor, gallery tiles, inspect),
+  // consistently. The dither uses gl_FragCoord (destination pixel) and is
+  // unaffected, so determinism is preserved.
+  vec3 enc = texture(u_tex, vec2(v_uv.x, 1.0 - v_uv.y)).rgb;
   vec3 c = srgbToLinear3(enc);
 
   // === LINEAR-LIGHT stage (frozen): WB + exposure only ===

@@ -35,7 +35,12 @@
   position: relative;
   width: 100%;
   max-width: 640px;
+  /* Aspect ratio is set inline from the daily photo's width/height so portrait
+     AND landscape photos display in full (no crop). 4/5 is only a fallback if
+     the inline style is ever absent. max-height keeps a wide landscape from
+     overflowing the stage vertically; the frame stays centered. */
   aspect-ratio: 4 / 5;
+  max-height: 80dvh;
   box-shadow: var(--shadow);
 }
 

@@ -45,6 +45,15 @@ export interface DataAdapter {
 
   /** Toggle this user's like on a submission (one like/edit, UNIQUE). */
   toggleLike(submissionId: string): Promise<{ liked: boolean; likeCount: number }>;
+
+  /**
+   * DEV/testing only — clear this user's stored submission(s) so the editor can
+   * be replayed and re-submitted (the one-per-day lock is reset). Implemented
+   * only by LocalAdapter; undefined in production (SupabaseAdapter), where the
+   * server-side UNIQUE(daily_photo_id, player_id) constraint is authoritative.
+   * UI must gate any retry affordance on `adapter.mode === 'local'`.
+   */
+  resetSubmissions?(): Promise<void>;
 }
 
 /**

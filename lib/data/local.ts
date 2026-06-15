@@ -143,11 +143,11 @@ function saveLikes(set: Set<string>): void {
 // ---------------------------------------------------------------------------
 const DEV_PHOTO_ID      = 'dev-001';
 const DEV_PHOTO_DAY_NUM = 1;
-const DEV_PHOTO_THEME   = 'Golden Hour Escape';
+const DEV_PHOTO_THEME   = 'Highland Pass';
 
 // Dimensions from manifest.json (master16 variant)
 const DEV_MASTER_WIDTH  = 2048;
-const DEV_MASTER_HEIGHT = 1536;
+const DEV_MASTER_HEIGHT = 1365;
 
 function buildDevPhoto(): DailyPhoto {
   return {
@@ -359,6 +359,16 @@ export class LocalAdapter implements DataAdapter {
     submissions[photoId] = submission;
     saveSubmissions(submissions);
     return submission;
+  }
+
+  // ---------------------------------------------------------------------------
+  // resetSubmissions (DEV/testing only)
+  // ---------------------------------------------------------------------------
+  // Clears all stored submissions so the one-per-day lock reopens and the editor
+  // can be replayed/re-submitted. Local mode only — no production equivalent
+  // (the server UNIQUE constraint is authoritative). Likes are left intact.
+  async resetSubmissions(): Promise<void> {
+    saveSubmissions({});
   }
 
   // ---------------------------------------------------------------------------

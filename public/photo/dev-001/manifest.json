@@ -4,14 +4,14 @@
     "passed": true,
     "stats": {
       "channels": 3,
-      "clippedAnyPixels": 185,
-      "clippedCeilPct": 0.003958,
-      "clippedCombinedPct": 0.004282,
-      "clippedFloorPct": 0.000324,
-      "clippedHighPixels": 171,
-      "clippedLowPixels": 14,
-      "height": 1800,
-      "totalPixels": 4320000,
+      "clippedAnyPixels": 11074,
+      "clippedCeilPct": 0.001146,
+      "clippedCombinedPct": 0.288385,
+      "clippedFloorPct": 0.28724,
+      "clippedHighPixels": 44,
+      "clippedLowPixels": 11030,
+      "height": 1600,
+      "totalPixels": 3840000,
       "width": 2400
     },
     "thresholdPct": 2
@@ -19,24 +19,23 @@
   "delivery": {
     "encoding": "12bit-two-plane-webp",
     "hi": {
-      "bytes": 2925882,
+      "bytes": 2661346,
       "file": "master16-hi.webp",
       "format": "webp",
-      "height": 1536,
-      "sha256": "54f9680ca1e17282970dc870de62570833188da4e03a49d105cfc57118deccb1",
+      "height": 1365,
+      "sha256": "1875cad6eb2f0fa2e24ce82b229737eedf1776e1bf25d33dad4721f30ad7780b",
       "width": 2048
     },
     "lo": {
-      "bytes": 4642218,
+      "bytes": 3986362,
       "file": "master16-lo.webp",
       "format": "webp",
-      "height": 1536,
-      "sha256": "e7f0c69bb41c1a794a6c5ff1e38bbc96b53529911e9183935412f40be0488c3c",
+      "height": 1365,
+      "sha256": "ec128815f6fc5037669e48921bcefa9a8cc82be83f42dbd8d468c5e5de8b9863",
       "width": 2048
     },
-    "master16Sha256": "abd20fdc2034f4b3372cb31889d1827b3795b87935123942a9ddb7995499134c",
     "note": "Web-delivery two-plane lossless WebP. hi = top byte of each 16-bit RGB sample; lo = top nibble of the low byte replicated to a full byte ((nib<<4)|nib). Decode: nib=lo>>4; v=(hi<<8)|(nib<<4)|nib. NOT bit-identical to master16.png (bottom 4 bits dropped); recombines bit-exactly to the 12-bit-quantized master samples (recombinesTo).",
-    "pixelDataSha": "76c7f11593a67687514ebd801d6f606eb43d31e3657df4b28524943a46ccf0ed",
+    "pixelDataSha": "31c5141319ab61dd23e3e3ab9d9043510d49f65dc2256c824a9c61b3ada29c06",
     "planes": {
       "hi": {
         "bits": "top byte (v>>8)",
@@ -47,7 +46,7 @@
         "plane": "lo"
       }
     },
-    "recombinesTo": "cc5d13e46e3212e6bb2635336d336f10ca9cafa844deff7ac141e8d7db8fb72a"
+    "recombinesTo": "0708241c9ca2375b846379103c429ffbfd7266652eb966d17018b72185a96aa2"
   },
   "encoders": {
     "jpeg": {
@@ -115,9 +114,9 @@
     "passed": true
   },
   "source": {
-    "bytes": 384262,
-    "filename": "cand-3.jpg",
-    "sha256": "ad04732cb11ceb89b00f67c5f9dd48265508694baa80b9a261f56ae0e4a9bb3a"
+    "bytes": 450478,
+    "filename": "ls-1018.jpg",
+    "sha256": "acc56908bbebfd494b6c402814448d3f2a7b3999faa0b6e8b463b2288378c340"
   },
   "tools": {
     "ffmpeg": "6.0",
@@ -133,32 +132,32 @@
   "variants": {
     "ai768": {
       "bitDepthPerChannel": 8,
-      "bytes": 67497,
+      "bytes": 77996,
       "channels": 3,
       "file": "ai768.jpg",
       "format": "jpeg",
-      "height": 576,
-      "sha256": "36c8ed17cf1c1a09f4aa53e139a3487f6559083adc887bf104f4497c83bffbb5",
+      "height": 512,
+      "sha256": "6f9af011c38076d8c5207ebb12bd397438ec8b7a80fbef847bc295739df08d0d",
       "width": 768
     },
     "master16": {
       "bitDepthPerChannel": 16,
-      "bytes": 18141694,
+      "bytes": 15316213,
       "channels": 3,
       "file": "master16.png",
       "format": "png",
-      "height": 1536,
-      "sha256": "abd20fdc2034f4b3372cb31889d1827b3795b87935123942a9ddb7995499134c",
+      "height": 1365,
+      "sha256": "e9ae83b5406c06a4e3e9daa5bdd9c96dbe39c08e53ee8d1261507561e676dfb3",
       "width": 2048
     },
     "preview8": {
       "bitDepthPerChannel": 8,
-      "bytes": 52068,
+      "bytes": 91732,
       "channels": 3,
       "file": "preview8.webp",
       "format": "webp",
-      "height": 768,
-      "sha256": "8be6f4bc4add6b200de637125eb43980de1e8eef124f079a9d77807414791505",
+      "height": 683,
+      "sha256": "75d625117e89a0b29a2b6eeb2a4b7ac901d96152a067079b1e63450a8f06599d",
       "width": 1024
     }
   }
