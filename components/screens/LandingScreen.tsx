@@ -8,6 +8,7 @@
  * "See today's gallery").
  */
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { DailyPhoto, Submission } from '@/lib/types';
 import { getAdapter } from '@/lib/data';
@@ -25,6 +26,9 @@ export function LandingScreen() {
   const router = useRouter();
   const isDesktop = useIsDesktop();
   const { howToSeen, markHowToSeen } = useAppState();
+
+  // DEV-only: link to the local-mode /admin photo switcher (gated like devRetry).
+  const isLocal = getAdapter().mode === 'local';
 
   const [photo, setPhoto] = useState<DailyPhoto | null>(null);
   const [mine, setMine] = useState<Submission | null>(null);
@@ -78,6 +82,11 @@ export function LandingScreen() {
             <div className="row" style={{ gap: 10 }}>
               <Smiley />
               <span className={styles.wordmark}>color-gradle</span>
+              {isLocal && (
+                <Link href="/admin" className="btn ghost sm">
+                  Admin
+                </Link>
+              )}
             </div>
             <div style={{ height: 8 }} />
             <div className="eyebrow">
@@ -143,6 +152,11 @@ export function LandingScreen() {
           <div className="row" style={{ gap: 9 }}>
             <Smiley size={20} />
             <span className={styles.wordmark}>color-gradle</span>
+            {isLocal && (
+              <Link href="/admin" className="badge solid">
+                Admin
+              </Link>
+            )}
           </div>
           <div className="fill1" />
           <span

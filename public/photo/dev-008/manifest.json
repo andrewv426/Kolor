@@ -4,26 +4,26 @@
     "passed": true,
     "stats": {
       "channels": 3,
-      "clippedAnyPixels": 6674,
-      "clippedCeilPct": 0.006131,
-      "clippedCombinedPct": 0.041039,
-      "clippedFloorPct": 0.034909,
-      "clippedHighPixels": 997,
-      "clippedLowPixels": 5677,
-      "height": 3296,
-      "totalPixels": 16262464,
-      "width": 4934
+      "clippedAnyPixels": 4430,
+      "clippedCeilPct": 0,
+      "clippedCombinedPct": 0.018275,
+      "clippedFloorPct": 0.018275,
+      "clippedHighPixels": 0,
+      "clippedLowPixels": 4430,
+      "height": 4024,
+      "totalPixels": 24240576,
+      "width": 6024
     },
     "thresholdPct": 2
   },
   "delivery": {
     "encoding": "12bit-two-plane-webp",
     "hi": {
-      "bytes": 3641156,
+      "bytes": 1448098,
       "file": "master16-hi.webp",
       "format": "webp",
       "height": 1368,
-      "sha256": "0244078b6cf0e62650c1271b83cc7e5e7a08db6c69cd68a70a998e3006b27122",
+      "sha256": "f455f9f7f25be523d6fe178f48612585fa0245829e2c901251b02a8f2a05cb9b",
       "width": 2048
     },
     "lo": {
@@ -31,11 +31,11 @@
       "file": "master16-lo.webp",
       "format": "webp",
       "height": 1368,
-      "sha256": "9d263553320bdd6ed44abec175e647daad33d361155e66b0a75fcb2249038c3e",
+      "sha256": "9c547d707628d5675d2312558fb54914b3953f2c56fc09478f1e4afb7834a0cf",
       "width": 2048
     },
     "note": "Web-delivery two-plane lossless WebP. hi = top byte of each 16-bit RGB sample; lo = top nibble of the low byte replicated to a full byte ((nib<<4)|nib). Decode: nib=lo>>4; v=(hi<<8)|(nib<<4)|nib. NOT bit-identical to master16.png (bottom 4 bits dropped); recombines bit-exactly to the 12-bit-quantized master samples (recombinesTo).",
-    "pixelDataSha": "37f72d6b9e6cf74d16908e6ff34c35a8ef2fd29beedc93fab7bdd2189dbe671b",
+    "pixelDataSha": "d805a39766daa11ba504d0a67d2bcba0a45fe1b3b248d3d29efd6da3540c3907",
     "planes": {
       "hi": {
         "bits": "top byte (v>>8)",
@@ -46,7 +46,7 @@
         "plane": "lo"
       }
     },
-    "recombinesTo": "45ea933acba9594cd8af60da16dde2f142e1d1195c9760399a0d1b71f38ef048"
+    "recombinesTo": "23460940ccc3ecf9276b6922af610ca41af9b52d97a3fcb37ee2f165010173ad"
   },
   "demosaic": {
     "algorithm": "VNG",
@@ -124,14 +124,14 @@
   "resampleKernel": "lanczos3",
   "resolutionGate": {
     "forced": false,
-    "inputLongEdgePx": 4934,
+    "inputLongEdgePx": 6024,
     "minLongEdgePx": 2048,
     "passed": true
   },
   "source": {
-    "bytes": 33806336,
-    "filename": "b_fuji.raf",
-    "sha256": "e994a1fd6e87e392432fe146a35b0b88584dc2bd50bee2c8c7e886ac2b59fcde"
+    "bytes": 24890112,
+    "filename": "e3.raw",
+    "sha256": "598bbc828c279528f504c51a10418521b17a90a25b198368f65e19cfda9e3711"
   },
   "tools": {
     "ffmpeg": "6.0",
@@ -150,32 +150,32 @@
   "variants": {
     "ai768": {
       "bitDepthPerChannel": 8,
-      "bytes": 85446,
+      "bytes": 44273,
       "channels": 3,
       "file": "ai768.jpg",
       "format": "jpeg",
       "height": 513,
-      "sha256": "a6e7514c351efb7d136035cae4b8707525109ecbca9b9bfb2576859b1d3d796a",
+      "sha256": "b49164d1e4fef5f6651a44a9859bd32b8d9a9edff3f281debc232861941c12a2",
       "width": 768
     },
     "master16": {
       "bitDepthPerChannel": 16,
-      "bytes": 16378040,
+      "bytes": 15915159,
       "channels": 3,
       "file": "master16.png",
       "format": "png",
       "height": 1368,
-      "sha256": "4ae0e428b952a8e4b9126f5009c92381dd6b86cdc3f387b512041082eaf1255f",
+      "sha256": "011baf2e749b1eff030b2d0ecb3623c6e92e57fa85acdc48cb92882654a23d5d",
       "width": 2048
     },
     "preview8": {
       "bitDepthPerChannel": 8,
-      "bytes": 94808,
+      "bytes": 29132,
       "channels": 3,
       "file": "preview8.webp",
       "format": "webp",
       "height": 684,
-      "sha256": "d66a8d0a0c0bcab51967293259aee82d0a37324b03ef323bfe9174d6e118d5d3",
+      "sha256": "d79f24fa0cf60bc5fb90d92ee58e37b5e44e836410084f53e98d9c8b5d04468e",
       "width": 1024
     }
   }

@@ -49,27 +49,27 @@ insert into public.daily_photos (
   'a0000000-0000-0000-0000-000000000001'::uuid,
   current_date,       -- today so it is "today's puzzle" in local dev
   1,
-  'Low Light',
+  'Alpine',
   'dev-001/master16.png',
   'dev-001/preview8.webp',
   'dev-001/ai768.jpg',
   'dev-001/master16-hi.webp',
   'dev-001/master16-lo.webp',
   2048,
-  1367,
+  1368,
   '{
     "pipeline": "v1",
-    "source": {"filename": "cc0-sample.dng"},
+    "source": {"filename": "b_fuji.raf"},
     "variants": {
-      "master16": {"width": 2048, "height": 1367, "format": "png"},
+      "master16": {"width": 2048, "height": 1368, "format": "png"},
       "preview8": {"width": 1024, "height": 684,  "format": "webp"},
       "ai768":   {"width": 768,  "height": 513,  "format": "jpeg"}
     },
     "delivery": {
       "encoding": "12bit-two-plane-webp",
-      "recombinesTo": "e3637d00729e85e191baf9013f1db3829cbac1ef3a747b0e30c8a0dd9f499a1d",
-      "hi": {"file": "master16-hi.webp", "width": 2048, "height": 1367, "format": "webp", "sha256": "3fa923cd0fe06cc022d54393e0701477e5e80f1657a7326d94ff8cd7352a4da8"},
-      "lo": {"file": "master16-lo.webp", "width": 2048, "height": 1367, "format": "webp", "sha256": "a24dba628c2205430f7094ca0ac5259f307792f9e57e8f6041e2a22ba668635e"}
+      "recombinesTo": "45ea933acba9594cd8af60da16dde2f142e1d1195c9760399a0d1b71f38ef048",
+      "hi": {"file": "master16-hi.webp", "width": 2048, "height": 1368, "format": "webp", "sha256": "0244078b6cf0e62650c1271b83cc7e5e7a08db6c69cd68a70a998e3006b27122"},
+      "lo": {"file": "master16-lo.webp", "width": 2048, "height": 1368, "format": "webp", "sha256": "9d263553320bdd6ed44abec175e647daad33d361155e66b0a75fcb2249038c3e"}
     }
   }'::jsonb,
   'v1',

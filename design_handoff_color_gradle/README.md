@@ -146,6 +146,10 @@ Left sidebar (smiley + "color-gradle" / "CURATOR CONSOLE"), nav items: **Today, 
 - **Moderation:** flagged-edits queue (thumbnail, handle, reason, Keep/Remove).
 - **Analytics:** stat cards (players, completion %, median time, likes, returning %) + a 7-day completion bar chart.
 
+### Admin (dev) console — `/admin`
+
+Distinct from the production **curator console** above (`color-gradle Admin.html`, the authenticated, backend-backed operator dashboard). `/admin` is a **no-auth, local-mode-only developer switcher**: it renders only when `getAdapter().mode === 'local'` (otherwise a short "Admin is available only in local dev mode" notice + Back link), and is reached from a small "Admin" link in the landing wordmark row (also local-only). It lists the staged dev photos (`lib/data/devPhotos.ts`) as a responsive card grid — `preview8` thumb, theme, `id · w×h`, a `RAW` badge for RAW-sourced photos, and a `● Live` accent badge on the active one — and clicking a card sets it as "today" and returns to the landing screen. It also exposes the existing "Reset submissions (dev)" affordance. It uses Darkroom tokens + the shared `ui.css` primitives; it is a throwaway dev tool, not a designed product surface, so it does not appear in Figma.
+
 ---
 
 ## Interactions & Behavior (locked product decisions)

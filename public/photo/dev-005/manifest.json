@@ -4,38 +4,38 @@
     "passed": true,
     "stats": {
       "channels": 3,
-      "clippedAnyPixels": 6674,
-      "clippedCeilPct": 0.006131,
-      "clippedCombinedPct": 0.041039,
-      "clippedFloorPct": 0.034909,
-      "clippedHighPixels": 997,
-      "clippedLowPixels": 5677,
-      "height": 3296,
-      "totalPixels": 16262464,
-      "width": 4934
+      "clippedAnyPixels": 756,
+      "clippedCeilPct": 0,
+      "clippedCombinedPct": 0.003129,
+      "clippedFloorPct": 0.003129,
+      "clippedHighPixels": 0,
+      "clippedLowPixels": 756,
+      "height": 4016,
+      "totalPixels": 24160256,
+      "width": 6016
     },
     "thresholdPct": 2
   },
   "delivery": {
     "encoding": "12bit-two-plane-webp",
     "hi": {
-      "bytes": 3641156,
+      "bytes": 2697382,
       "file": "master16-hi.webp",
       "format": "webp",
-      "height": 1368,
-      "sha256": "0244078b6cf0e62650c1271b83cc7e5e7a08db6c69cd68a70a998e3006b27122",
+      "height": 1367,
+      "sha256": "55a1c4aad024880c0582c6138a9608da946167334da06ed3287ddd435e4de16b",
       "width": 2048
     },
     "lo": {
-      "bytes": 4202586,
+      "bytes": 4199514,
       "file": "master16-lo.webp",
       "format": "webp",
-      "height": 1368,
-      "sha256": "9d263553320bdd6ed44abec175e647daad33d361155e66b0a75fcb2249038c3e",
+      "height": 1367,
+      "sha256": "2c4b0c71f8c4fc6baa6bdbd141f92b4991b1f3207a855602fab67710b7520ba9",
       "width": 2048
     },
     "note": "Web-delivery two-plane lossless WebP. hi = top byte of each 16-bit RGB sample; lo = top nibble of the low byte replicated to a full byte ((nib<<4)|nib). Decode: nib=lo>>4; v=(hi<<8)|(nib<<4)|nib. NOT bit-identical to master16.png (bottom 4 bits dropped); recombines bit-exactly to the 12-bit-quantized master samples (recombinesTo).",
-    "pixelDataSha": "37f72d6b9e6cf74d16908e6ff34c35a8ef2fd29beedc93fab7bdd2189dbe671b",
+    "pixelDataSha": "cc91b578d784ccf67fe20f17d80f7569828ac32ad487ef81ffc3495aae96390f",
     "planes": {
       "hi": {
         "bits": "top byte (v>>8)",
@@ -46,7 +46,7 @@
         "plane": "lo"
       }
     },
-    "recombinesTo": "45ea933acba9594cd8af60da16dde2f142e1d1195c9760399a0d1b71f38ef048"
+    "recombinesTo": "426f4f62fb58ea7b3039447de263ed7b37520848d36c22e2128bf76c17a6f16b"
   },
   "demosaic": {
     "algorithm": "VNG",
@@ -124,14 +124,14 @@
   "resampleKernel": "lanczos3",
   "resolutionGate": {
     "forced": false,
-    "inputLongEdgePx": 4934,
+    "inputLongEdgePx": 6016,
     "minLongEdgePx": 2048,
     "passed": true
   },
   "source": {
-    "bytes": 33806336,
-    "filename": "b_fuji.raf",
-    "sha256": "e994a1fd6e87e392432fe146a35b0b88584dc2bd50bee2c8c7e886ac2b59fcde"
+    "bytes": 18927766,
+    "filename": "b_nik.nef",
+    "sha256": "97dfc95aecc00383d6da6197cb759bacb1e43c86071b4ca2d94748e498620f2f"
   },
   "tools": {
     "ffmpeg": "6.0",
@@ -150,32 +150,32 @@
   "variants": {
     "ai768": {
       "bitDepthPerChannel": 8,
-      "bytes": 85446,
+      "bytes": 33286,
       "channels": 3,
       "file": "ai768.jpg",
       "format": "jpeg",
       "height": 513,
-      "sha256": "a6e7514c351efb7d136035cae4b8707525109ecbca9b9bfb2576859b1d3d796a",
+      "sha256": "aab7bb33ff5b57485f15d5317fa01ee8856c8464b3b17e37d9af439a43fec97d",
       "width": 768
     },
     "master16": {
       "bitDepthPerChannel": 16,
-      "bytes": 16378040,
+      "bytes": 16025728,
       "channels": 3,
       "file": "master16.png",
       "format": "png",
-      "height": 1368,
-      "sha256": "4ae0e428b952a8e4b9126f5009c92381dd6b86cdc3f387b512041082eaf1255f",
+      "height": 1367,
+      "sha256": "8212c6fc64857bff6d1c0f98aa0a242cb5d39cd46bb6d25ed5e421bf55129a6a",
       "width": 2048
     },
     "preview8": {
       "bitDepthPerChannel": 8,
-      "bytes": 94808,
+      "bytes": 18306,
       "channels": 3,
       "file": "preview8.webp",
       "format": "webp",
       "height": 684,
-      "sha256": "d66a8d0a0c0bcab51967293259aee82d0a37324b03ef323bfe9174d6e118d5d3",
+      "sha256": "13128abac461ad1baa696a9dfd835e48e3cc41b0584ef48fd5bb7fc0474d386e",
       "width": 1024
     }
   }
