@@ -143,11 +143,11 @@ function saveLikes(set: Set<string>): void {
 // ---------------------------------------------------------------------------
 const DEV_PHOTO_ID      = 'dev-001';
 const DEV_PHOTO_DAY_NUM = 1;
-const DEV_PHOTO_THEME   = 'Highland Pass';
+const DEV_PHOTO_THEME   = 'Low Light';
 
 // Dimensions from manifest.json (master16 variant)
 const DEV_MASTER_WIDTH  = 2048;
-const DEV_MASTER_HEIGHT = 1365;
+const DEV_MASTER_HEIGHT = 1367;
 
 function buildDevPhoto(): DailyPhoto {
   return {

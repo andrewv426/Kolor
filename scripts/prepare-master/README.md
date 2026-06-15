@@ -1,9 +1,10 @@
 # prepare-master — color-gradle pipeline v1 canonical master prep
 
-Phase-0 CLI that turns one delivered stock JPEG into the **frozen pipeline-v1
-variant set** plus a byte-deterministic manifest. This is the *only* path that
-mints a day's canonical source, so its output is part of the `pipeline: "v1"`
-freeze (see `PRD.md` §6.2.1).
+Phase-0 CLI that turns one delivered stock **JPEG** — or a camera-**RAW** file
+(Level-1, see below) — into the **frozen pipeline-v1 variant set** plus a
+byte-deterministic manifest. This is the *only* path that mints a day's canonical
+source, so its output is part of the `pipeline: "v1"` freeze (see `PRD.md`
+§6.2.1).
 
 > **"Raw" / "unedited" now means this canonical preprocessed master** — not
 > camera RAW, not the delivered stock JPEG. JPEGs lack the tonal headroom the
@@ -59,13 +60,72 @@ lo 4.64MB = 7.57MB` vs the **18.1MB** PNG), with quantization error ≤ 0.058 of
 v1 freeze. The packing math lives in `planes.mjs` (the single definition shared by
 `index.mjs` and `verify-planes.mjs`).
 
+## Camera-RAW input (Level 1, PRD §6.2.1 amendment 2026-06-15)
+
+The CLI also accepts a camera-**RAW** file as the input. When the input extension
+is one of `.dng .cr2 .cr3 .nef .arw .raf .rw2 .orf .pef .srw .raw`
+(case-insensitive, `RAW_EXTENSIONS` in `constants.mjs`), a **deterministic
+demosaic step** runs *first* (`demosaic.py` via rawpy/LibRaw) and produces the
+**same 16-bit sRGB-encoded RGB** the JPEG decode produces. That output then feeds
+the **identical** downstream pipeline — curation gate → ffmpeg deband/denoise →
+the three frozen variants → the two-plane delivery encoding → manifest. The JPEG
+path is **byte-unchanged**; the demosaic branch only runs for RAW inputs.
+
+```bash
+node index.mjs <file.dng> [--out <dir>] [--threshold <pct>] [--force]
+```
+
+**Prerequisite (RAW only): Python 3.10 with pinned deps.** Install once:
+
+```bash
+pip install -r requirements.txt   # rawpy==0.27.0, tifffile==2025.5.10, numpy==2.2.6
+```
+
+The CLI launches `python3` by default. If the rawpy-equipped interpreter is not
+the first `python3` on `PATH` (e.g. it lives in a venv or a versioned Homebrew
+path), point at it explicitly:
+
+```bash
+PREPARE_MASTER_PYTHON=/path/to/python3.10 node index.mjs <file.dng>
+```
+
+**Frozen demosaic recipe** (`demosaic.py`, mirrored in `constants.mjs`
+`DEMOSAIC` — all part of the v1 freeze):
+
+| Param | Value | Why |
+|---|---|---|
+| `demosaic_algorithm` | `VNG` | single-threaded → no OpenMP nondeterminism |
+| `use_camera_wb` / `use_auto_wb` | `True` / `False` | as-shot WB, no data-driven scaling |
+| `no_auto_bright` | `True` | no auto exposure |
+| `output_bps` | `16` | 16-bit headroom |
+| `output_color` | `sRGB` | same space the rest of the pipeline/shader use |
+| `gamma` | `(2.4, 12.92)` | sRGB transfer curve (sRGB-**encoded** output) |
+| `highlight_mode` | `Clip` | deterministic, no reconstruction |
+
+Output is a 16-bit RGB TIFF (`tifffile`, `photometric='rgb'`, no datetime tag).
+The manifest records a `demosaic` block (the provenance above; `null` for non-RAW
+inputs) and adds `python` / `rawpy` / `libraw` versions to the `tools` block (RAW
+only).
+
+**Determinism + per-architecture caveat.** Repeated runs on the **same machine**
+are byte-identical across all six outputs + manifest. But **LibRaw, like libvips,
+is not cross-arch bit-identical** — a master demosaiced on arm64 macOS may not
+hash-match a re-run on x86_64 Linux. As with the rest of the pipeline, **mint the
+canonical master on one pinned architecture** (the CI runner) so re-run hashes
+are comparable.
+
+This is **Level 1** — it yields a display-referred sRGB master in the existing
+`[0,1]` gamma domain, with no shader/EOTF/texture change. Level-2 HDR
+(scene-referred >1.0, new shader/transfer function/texture) remains a future
+pipeline **v2**.
+
 ## Usage
 
 ```bash
 npm install            # installs pinned sharp + ffmpeg-static (vendored ffmpeg binary)
 
-# full pipeline (candidate JPEG → all six outputs incl. delivery planes):
-node index.mjs <input.jpg> [--out <dir>] [--threshold <pct>] [--force]
+# full pipeline (candidate JPEG OR camera RAW → all six outputs incl. delivery planes):
+node index.mjs <input.jpg|input.dng> [--out <dir>] [--threshold <pct>] [--force]
 
 # standalone: derive ONLY the delivery planes + a manifest fragment from an
 # EXISTING canonical master16.png (for already-minted photos whose candidate
@@ -212,7 +272,8 @@ SHA-256.
   "source":        { "filename": "<basename>", "sha256": "...", "bytes": ... },
   "curationGate":  { "thresholdPct": 2, "passed": true, "forced": false, "stats": { ...clip counts/percents... } },
   "resolutionGate":{ "minLongEdgePx": 2048, "inputLongEdgePx": 4000, "passed": true, "forced": false },
-  "tools":         { "node": "...", "prepareMaster": "...", "sharp": "...", "libvips": "...", "libpng": "...", "libwebp": "...", "mozjpeg": "...", "zlibNg": "...", "ffmpeg": "6.0" },
+  "tools":         { "node": "...", "prepareMaster": "...", "sharp": "...", "libvips": "...", "libpng": "...", "libwebp": "...", "mozjpeg": "...", "zlibNg": "...", "ffmpeg": "6.0" /* RAW inputs ALSO add: "python", "rawpy", "libraw" */ },
+  "demosaic":      null /* non-RAW. For RAW inputs: { "tool": "rawpy", "rawpyVersion": "0.27.0", "librawVersion": "(0, 22, 1)", "algorithm": "VNG", "whiteBalance": "camera", "gamma": [2.4, 12.92], "outputColor": "sRGB", "noAutoBright": true, "highlightMode": "clip", "outputBps": 16 } */,
   "preprocessing": { "intermediatePixFmt": "rgb48le", "filterGraph": "...", "filterParams": { ... }, "ffmpegDeterminismFlags": [ ... ], "mlDenoiseModel": null, "mlDenoiseWeightsSha256": null },
   "resampleKernel": "lanczos3",
   "encoders":      { "png": { ... }, "webp": { ... }, "jpeg": { ... }, "planeWebp": { "lossless": true, "effort": 6, "smartSubsample": false } },
@@ -276,7 +337,11 @@ jobs:
 
 ## Files
 
-- `index.mjs` — the CLI (full pipeline + `--derive-planes` standalone mode).
+- `index.mjs` — the CLI (full pipeline + `--derive-planes` standalone mode;
+  routes RAW inputs through `demosaic.py`).
+- `demosaic.py` — the frozen Level-1 RAW demosaic step (rawpy/LibRaw → 16-bit
+  sRGB RGB TIFF + provenance JSON). Run only for RAW inputs.
+- `requirements.txt` — exact Python pins for `demosaic.py` (rawpy/tifffile/numpy).
 - `constants.mjs` — all frozen v1 parameters (variant set, filter graph, encoder
   configs, resample kernel, default gate threshold, **plane WebP params + the
   `DELIVERY_ENCODING` descriptor**).
