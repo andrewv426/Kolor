@@ -40,6 +40,13 @@ interface PhotoProps {
   style?: React.CSSProperties;
   /** Scrim gradient over the image (landing/tiles). */
   scrim?: 'soft' | 'full';
+  /**
+   * How the rendered canvas / fallback img fills the box. `cover` (default)
+   * center-crops — used by the square gallery tiles, inspect, landing hero and
+   * share frames. `contain` shows the whole photo with no crop or distortion —
+   * used by the editor stage, whose frame adopts the photo's aspect ratio.
+   */
+  fit?: 'cover' | 'contain';
   /** Notified once the effective tier is known. */
   onTier?: (tier: RenderTier) => void;
   /** Fired when the photo genuinely can't load (tier-C preview also failed). */
@@ -73,6 +80,7 @@ export function Photo({
   captureRef,
   children,
   showProgress = false,
+  fit = 'cover',
 }: PhotoProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<V1Renderer | null>(null);
@@ -172,7 +180,7 @@ export function Photo({
 
   return (
     <div
-      className={`${styles.photo} ${className}`}
+      className={`${styles.photo} ${fit === 'contain' ? styles.fitContain : ''} ${className}`}
       style={{ borderRadius: radius, ...style }}
     >
       {/* WebGL canvas — hidden until a non-C tier is confirmed */}

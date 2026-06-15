@@ -25,6 +25,16 @@
   object-position: center;
 }
 
+/* Editor render path: show the whole photo (portrait OR landscape) with no crop
+   or distortion — the frame adopts the photo's aspect ratio, so contain just
+   guards against any letterboxing rounding. Scoped to the editor usage via the
+   `fit="contain"` prop (applied to the root .photo); gallery tiles / inspect /
+   hero keep the cover-crop. */
+.fitContain .canvas,
+.fitContain .img {
+  object-fit: contain;
+}
+
 .ov {
   position: absolute;
   inset: 0;

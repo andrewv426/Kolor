@@ -196,6 +196,7 @@ export function EditorScreen() {
       key={photoKey}
       photo={photo}
       tone={shownTone}
+      fit="contain"
       onTier={setTier}
       onError={() => setPhotoError(true)}
       captureRef={captureRef}
@@ -204,6 +205,14 @@ export function EditorScreen() {
       radius={isDesktop ? 'var(--r)' : undefined}
     />
   );
+
+  // The desktop stage frame adopts the daily photo's aspect ratio so portrait
+  // AND landscape photos display in full (no crop) within the recessed
+  // letterbox. max-width / max-height in CSS keep a wide landscape from
+  // overflowing.
+  const deskFrameStyle: React.CSSProperties = {
+    aspectRatio: `${photo.width} / ${photo.height}`,
+  };
 
   const errorOverlay = photoError ? (
     <div className={styles.errOverlay}>
@@ -228,6 +237,7 @@ export function EditorScreen() {
         <DesktopLayout
           topBar={topBar}
           photoStage={photoStage}
+          photoFrameStyle={deskFrameStyle}
           errorOverlay={errorOverlay}
           compareBtn={photoError ? null : compareBtn}
           tierNote={tierNote}
@@ -274,6 +284,8 @@ interface LayoutProps {
   sliderList: React.ReactNode;
   onReset: () => void;
   onSubmit: () => void;
+  /** Desktop only: aspect-ratio of the daily photo, applied to the frame box. */
+  photoFrameStyle?: React.CSSProperties;
 }
 
 function DesktopLayout(p: LayoutProps) {
@@ -281,7 +293,7 @@ function DesktopLayout(p: LayoutProps) {
     <div className={styles.deskGrid}>
       {p.topBar}
       <div className={`onphoto ${styles.deskStage}`}>
-        <div className={styles.deskPhotoFrame}>
+        <div className={styles.deskPhotoFrame} style={p.photoFrameStyle}>
           {p.photoStage}
           {p.errorOverlay}
           {p.compareBtn ? (
