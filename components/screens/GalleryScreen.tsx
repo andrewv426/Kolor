@@ -29,6 +29,18 @@ export function GalleryScreen() {
   const router = useRouter();
   const isDesktop = useIsDesktop();
 
+  // DEV/testing only: a "Play again" reset, shown in local mode. Clears the
+  // stored submission (reopening the one-per-day lock) and returns to the editor
+  // so multiple edits can be submitted while testing. Null in production.
+  const devRetry = useMemo(() => {
+    const adapter = getAdapter();
+    if (adapter.mode !== 'local' || !adapter.resetSubmissions) return null;
+    return async () => {
+      await adapter.resetSubmissions!();
+      router.push('/edit');
+    };
+  }, [router]);
+
   const [photo, setPhoto] = useState<DailyPhoto | null>(null);
   const [mine, setMine] = useState<Submission | null>(null);
   const [subs, setSubs] = useState<Submission[]>([]);
@@ -189,9 +201,20 @@ export function GalleryScreen() {
               </span>
             </div>
           </div>
-          <button className="btn sm" onClick={() => router.push('/result')}>
-            Share
-          </button>
+          <div className="row" style={{ gap: 8 }}>
+            {devRetry ? (
+              <button
+                className="btn ghost sm"
+                title="Dev only: clears your submission so you can edit and submit again"
+                onClick={devRetry}
+              >
+                ↺ Play again
+              </button>
+            ) : null}
+            <button className="btn sm" onClick={() => router.push('/result')}>
+              Share
+            </button>
+          </div>
         </div>
       ) : null}
 

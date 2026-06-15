@@ -206,6 +206,17 @@ function PlayedBlock({
   const ms = useUtcCountdown();
   const likes = mine?.likeCount ?? 0;
 
+  // DEV/testing only (local mode): reset the one-per-day lock and re-enter the
+  // editor so multiple edits can be submitted. Null in production.
+  const adapter = getAdapter();
+  const devRetry =
+    adapter.mode === 'local' && adapter.resetSubmissions
+      ? async () => {
+          await adapter.resetSubmissions!();
+          router.push('/edit');
+        }
+      : null;
+
   if (desktop) {
     return (
       <div className="col" style={{ gap: 16, marginTop: 2 }}>
@@ -241,6 +252,15 @@ function PlayedBlock({
           <button className="btn lg" onClick={() => router.push('/result')}>
             Share result
           </button>
+          {devRetry ? (
+            <button
+              className="btn ghost lg"
+              title="Dev only: clears your submission so you can edit and submit again"
+              onClick={devRetry}
+            >
+              ↺ Play again
+            </button>
+          ) : null}
         </div>
       </div>
     );
@@ -285,6 +305,15 @@ function PlayedBlock({
       >
         See today&apos;s gallery
       </button>
+      {devRetry ? (
+        <button
+          className="btn ghost block"
+          title="Dev only: clears your submission so you can edit and submit again"
+          onClick={devRetry}
+        >
+          ↺ Play again
+        </button>
+      ) : null}
     </div>
   );
 }

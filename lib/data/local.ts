@@ -362,6 +362,16 @@ export class LocalAdapter implements DataAdapter {
   }
 
   // ---------------------------------------------------------------------------
+  // resetSubmissions (DEV/testing only)
+  // ---------------------------------------------------------------------------
+  // Clears all stored submissions so the one-per-day lock reopens and the editor
+  // can be replayed/re-submitted. Local mode only — no production equivalent
+  // (the server UNIQUE constraint is authoritative). Likes are left intact.
+  async resetSubmissions(): Promise<void> {
+    saveSubmissions({});
+  }
+
+  // ---------------------------------------------------------------------------
   // getGallery
   // ---------------------------------------------------------------------------
   // Commit-reveal: returns empty array if user hasn't submitted yet.
