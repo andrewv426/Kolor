@@ -16,14 +16,16 @@
 import type { DataAdapter } from './types';
 import type { DailyPhoto, EditSettings, Submission, ToneSettings } from '@/lib/types';
 import { clampToneSettings, DEFAULT_TONE, TONE_KEYS } from '@/lib/types';
+import { DEV_PHOTOS, DEFAULT_PHOTO_ID, getDevPhoto, buildPhoto } from './devPhotos';
 
 // ---------------------------------------------------------------------------
 // localStorage key namespace — prefix `cg2_` matches prototype convention.
 // ---------------------------------------------------------------------------
 const LS_IDENTITY_ID   = 'cg2_identity_id';
 const LS_IDENTITY_NAME = 'cg2_identity_name';
-const LS_SUBMISSIONS   = 'cg2_submissions'; // Map<photoId, Submission>
-const LS_LIKES         = 'cg2_likes';       // Set<submissionId>
+const LS_SUBMISSIONS   = 'cg2_submissions';   // Map<photoId, Submission>
+const LS_LIKES         = 'cg2_likes';         // Set<submissionId>
+const LS_ACTIVE_PHOTO  = 'cg2_active_photo';  // dev: which DEV_PHOTOS entry is "today"
 
 // ---------------------------------------------------------------------------
 // Handle generator
@@ -139,30 +141,16 @@ function saveLikes(set: Set<string>): void {
 }
 
 // ---------------------------------------------------------------------------
-// Dev-001 photo constants
+// Active dev photo (which DEV_PHOTOS entry is "today")
 // ---------------------------------------------------------------------------
-const DEV_PHOTO_ID      = 'dev-001';
-const DEV_PHOTO_DAY_NUM = 1;
-const DEV_PHOTO_THEME   = 'Highland Pass';
-
-// Dimensions from manifest.json (master16 variant)
-const DEV_MASTER_WIDTH  = 2048;
-const DEV_MASTER_HEIGHT = 1365;
-
-function buildDevPhoto(): DailyPhoto {
-  return {
-    id:          DEV_PHOTO_ID,
-    dayNumber:   DEV_PHOTO_DAY_NUM,
-    theme:       DEV_PHOTO_THEME,
-    master16Url: `/photo/${DEV_PHOTO_ID}/master16.png`,
-    preview8Url: `/photo/${DEV_PHOTO_ID}/preview8.webp`,
-    // Two-plane WebP delivery (PRD §6.2.1 amendment 2026-06-12). Editor prefers
-    // these (≈42% of the PNG), falling back to master16.png on failure.
-    master16HiUrl: `/photo/${DEV_PHOTO_ID}/master16-hi.webp`,
-    master16LoUrl: `/photo/${DEV_PHOTO_ID}/master16-lo.webp`,
-    width:        DEV_MASTER_WIDTH,
-    height:       DEV_MASTER_HEIGHT,
-  };
+// The /admin dev switcher persists the active id here. Falls back to
+// DEFAULT_PHOTO_ID when unset or pointing at an unregistered/removed id.
+// ---------------------------------------------------------------------------
+function loadActivePhotoId(): string {
+  if (typeof localStorage === 'undefined') return DEFAULT_PHOTO_ID;
+  const stored = localStorage.getItem(LS_ACTIVE_PHOTO);
+  if (stored && getDevPhoto(stored)) return stored;
+  return DEFAULT_PHOTO_ID;
 }
 
 // ---------------------------------------------------------------------------
@@ -299,7 +287,30 @@ export class LocalAdapter implements DataAdapter {
   // getToday
   // ---------------------------------------------------------------------------
   async getToday(): Promise<DailyPhoto> {
-    return buildDevPhoto();
+    return buildPhoto(getDevPhoto(loadActivePhotoId()) ?? getDevPhoto(DEFAULT_PHOTO_ID)!);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dev photo switcher (LOCAL ONLY) — backs the /admin console.
+  // ---------------------------------------------------------------------------
+  // Synchronous, local-only methods that have no SupabaseAdapter equivalent
+  // (production resolves the daily photo from the daily_photos table, PRD §6.8).
+  // UI must gate any use on `adapter.mode === 'local'`.
+  // ---------------------------------------------------------------------------
+
+  /** All registered dev photos as DailyPhoto DTOs (for the switcher grid). */
+  listPhotos(): DailyPhoto[] {
+    return DEV_PHOTOS.map(buildPhoto);
+  }
+
+  /** The currently-active dev photo id (what getToday() will serve). */
+  getActivePhotoId(): string {
+    return loadActivePhotoId();
+  }
+
+  /** Set the active dev photo (no-op if id isn't a registered entry). */
+  setActivePhotoId(id: string): void {
+    if (getDevPhoto(id)) localStorage.setItem(LS_ACTIVE_PHOTO, id);
   }
 
   // ---------------------------------------------------------------------------

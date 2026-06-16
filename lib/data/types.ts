@@ -54,6 +54,16 @@ export interface DataAdapter {
    * UI must gate any retry affordance on `adapter.mode === 'local'`.
    */
   resetSubmissions?(): Promise<void>;
+
+  /**
+   * DEV-only dev-photo switcher (backs the local-only `/admin` console).
+   * Implemented only by LocalAdapter; SupabaseAdapter omits them (production
+   * resolves the daily photo from the `daily_photos` table, PRD §6.8). UI must
+   * gate any use on `adapter.mode === 'local'`.
+   */
+  listPhotos?(): DailyPhoto[];
+  getActivePhotoId?(): string;
+  setActivePhotoId?(id: string): void;
 }
 
 /**

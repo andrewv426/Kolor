@@ -10,7 +10,7 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdtempSync, rmSync, mkdirSync, existsSync } from 'node:fs';
-import { join, resolve, basename } from 'node:path';
+import { join, resolve, basename, extname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
@@ -29,6 +29,7 @@ import {
   DEFAULT_CLIP_THRESHOLD_PCT,
   PLANES,
   PLANE_WEBP,
+  RAW_EXTENSIONS,
 } from './constants.mjs';
 import { decodeMaster16Samples, derivePlanes } from './planes.mjs';
 
@@ -115,6 +116,64 @@ function ffmpegVersion() {
   if (r.status !== 0) fail(`ffmpeg -version failed: ${r.stderr || r.error}`);
   const m = r.stdout.match(/ffmpeg version (\S+)/);
   return m ? m[1] : 'unknown';
+}
+
+// --------------------------------------------------------------------------
+// Level-1 RAW input (PRD §6.2.1 amendment 2026-06-15).
+// --------------------------------------------------------------------------
+const SCRIPT_DIR = fileURLToPath(new URL('.', import.meta.url));
+
+// The Python interpreter that runs demosaic.py. Defaults to `python3` (what CI
+// provides via setup-python); override with PREPARE_MASTER_PYTHON when the
+// rawpy-equipped interpreter is not the first `python3` on PATH (e.g. a venv).
+const PYTHON_BIN = process.env.PREPARE_MASTER_PYTHON || 'python3';
+
+// True when the input path looks like a camera-RAW file (case-insensitive).
+function isRawInput(inputPath) {
+  return RAW_EXTENSIONS.includes(extname(inputPath).toLowerCase());
+}
+
+function pythonVersion() {
+  const r = spawnSync(PYTHON_BIN, ['--version'], { encoding: 'utf8' });
+  if (r.status !== 0) return 'unknown';
+  // Python prints the version to stdout (3.4+) — fall back to stderr just in case.
+  const out = `${r.stdout || ''}${r.stderr || ''}`.trim();
+  const m = out.match(/Python (\S+)/);
+  return m ? m[1] : 'unknown';
+}
+
+// Run the frozen demosaic step (demosaic.py): RAW → 16-bit sRGB RGB TIFF.
+// Returns { tiffBuffer, provenance } where provenance is the JSON the subprocess
+// prints (mirrors constants.DEMOSAIC). The TIFF buffer then replaces the JPEG
+// decode for BOTH the curation gate and the ffmpeg 16-bit handoff.
+function runDemosaic(inputPath, workDir) {
+  const outTiff = join(workDir, 'demosaic.tiff');
+  const script = join(SCRIPT_DIR, 'demosaic.py');
+  if (!existsSync(script)) fail(`demosaic.py not found next to index.mjs: ${script}`);
+
+  const r = spawnSync(PYTHON_BIN, [script, inputPath, outTiff], { encoding: 'utf8' });
+  if (r.error) {
+    fail(
+      `RAW demosaic failed to launch ${PYTHON_BIN} (${r.error.message}). The RAW path ` +
+        `requires Python 3.10 with the pinned deps in requirements.txt ` +
+        `(pip install -r requirements.txt). Set PREPARE_MASTER_PYTHON to point at ` +
+        `the right interpreter if it is not the first python3 on PATH.`,
+    );
+  }
+  if (r.status !== 0) {
+    fail(`RAW demosaic failed (${PYTHON_BIN} demosaic.py exit ${r.status}):\n${r.stderr || r.stdout}`);
+  }
+
+  let provenance;
+  try {
+    const line = r.stdout.trim().split(/\r?\n/).filter(Boolean).pop();
+    provenance = JSON.parse(line);
+  } catch (e) {
+    fail(`RAW demosaic: could not parse provenance JSON from demosaic.py stdout:\n${r.stdout}`);
+  }
+
+  if (!existsSync(outTiff)) fail(`RAW demosaic: expected TIFF not written: ${outTiff}`);
+  return { tiffBuffer: readFileSync(outTiff), provenance };
 }
 
 // Compute the long-edge resize geometry deterministically (integer dims).
@@ -351,8 +410,30 @@ async function main() {
   const inputBuffer = readFileSync(inputPath);
   const inputSha = sha256(inputBuffer);
 
-  // --- curation gate (on the original decode) ---------------------------
-  const clip = await computeClipStats(inputBuffer);
+  // --- Level-1 RAW demosaic (PRD §6.2.1 amendment 2026-06-15) ------------
+  // If the input is a camera-RAW file, run the frozen rawpy/LibRaw demosaic to
+  // produce a 16-bit sRGB-encoded RGB TIFF, and use THAT for everything
+  // downstream (curation gate + ffmpeg handoff). Non-RAW inputs are untouched:
+  // sourceImageBuffer stays === inputBuffer and the demosaic branch never runs,
+  // so JPEG outputs are byte-identical to before this feature.
+  const rawInput = isRawInput(inputPath);
+  // One work dir for the whole run (also reused for the ffmpeg handoff below).
+  const work = mkdtempSync(join(tmpdir(), 'prepare-master-'));
+  let sourceImageBuffer = inputBuffer;
+  let demosaicProvenance = null;
+  try {
+    if (rawInput) {
+      process.stderr.write(
+        `prepare-master: RAW input detected (${extname(inputPath).toLowerCase()}); ` +
+          `running Level-1 demosaic (rawpy/LibRaw, VNG).\n`,
+      );
+      const { tiffBuffer, provenance } = runDemosaic(inputPath, work);
+      sourceImageBuffer = tiffBuffer;
+      demosaicProvenance = provenance;
+    }
+
+  // --- curation gate (on the demosaiced / original decode) --------------
+  const clip = await computeClipStats(sourceImageBuffer);
   const gatePassed = clip.clippedCombinedPct <= args.threshold;
 
   process.stderr.write(
@@ -396,17 +477,18 @@ async function main() {
   mkdirSync(outDir, { recursive: true });
 
   // --- ffmpeg high-bit-depth preprocessing ------------------------------
-  // Decode the input to a lossless 16-bit PNG that ffmpeg can read, run the
-  // deband/denoise graph at 16-bit, then read it back into sharp.
-  const work = mkdtempSync(join(tmpdir(), 'prepare-master-'));
+  // Decode the source image (JPEG bytes, or the RAW demosaic TIFF) to a
+  // lossless 16-bit PNG that ffmpeg can read, run the deband/denoise graph at
+  // 16-bit, then read it back into sharp. Uses the shared `work` dir created at
+  // the top of this block.
   let processedBuffer;
   let ffInfo;
-  try {
+  {
     const ffInPng = join(work, 'in16.png');
     const ffOutPng = join(work, 'out16.png');
 
     // Lossless 16-bit RGB PNG handoff into ffmpeg (no resize yet; full res in).
-    const decoded16 = await sharp(inputBuffer)
+    const decoded16 = await sharp(sourceImageBuffer)
       .toColourspace('rgb16')
       .png({ compressionLevel: 0, adaptiveFiltering: false, palette: false })
       .toBuffer();
@@ -414,8 +496,6 @@ async function main() {
 
     ffInfo = runFfmpeg(ffInPng, ffOutPng);
     processedBuffer = readFileSync(ffOutPng);
-  } finally {
-    rmSync(work, { recursive: true, force: true });
   }
 
   // --- emit the three frozen variants -----------------------------------
@@ -485,7 +565,19 @@ async function main() {
       mozjpeg: sharp.versions.mozjpeg,
       zlibNg: sharp.versions['zlib-ng'],
       ffmpeg: ffmpegVersion(),
+      // RAW path only: the Python/rawpy/LibRaw versions that ran the demosaic.
+      // Omitted (no keys) for non-RAW inputs so JSON stays byte-identical.
+      ...(rawInput
+        ? {
+            python: pythonVersion(),
+            rawpy: demosaicProvenance.rawpyVersion,
+            libraw: demosaicProvenance.librawVersion,
+          }
+        : {}),
     },
+    // Level-1 RAW demosaic provenance: null for non-RAW; the frozen recipe +
+    // tool versions (mirrors constants.DEMOSAIC) for RAW inputs.
+    demosaic: demosaicProvenance,
     preprocessing: {
       intermediatePixFmt: FFMPEG_PIX_FMT,
       filterGraph: ffInfo.filter,
@@ -510,6 +602,9 @@ async function main() {
       `planes hi=${delivery.hi.bytes}B lo=${delivery.lo.bytes}B (${delivery.encoding}) ` +
       `+ manifest.json to ${outDir}\n`,
   );
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
 }
 
 // --------------------------------------------------------------------------

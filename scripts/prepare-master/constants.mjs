@@ -7,6 +7,49 @@
 export const PIPELINE_VERSION = 'v1';
 
 // ---------------------------------------------------------------------------
+// Level-1 RAW input (PRD §6.2.1 amendment 2026-06-15). When the input is a
+// camera-RAW file we run a server-side, once-per-day demosaic
+// (scripts/prepare-master/demosaic.py via rawpy/LibRaw) that produces the SAME
+// 16-bit sRGB-encoded RGB the JPEG path produces, then feed THAT into the
+// existing curation gate + ffmpeg + variant/plane pipeline unchanged.
+//
+// This DEMOSAIC recipe is FROZEN as part of pipeline v1 — it mirrors the exact
+// rawpy.postprocess() params in demosaic.py. Changing any value here changes the
+// master bytes and MUST ship as a new pipeline version (the v2 rule). It is
+// additive: the JPEG path is byte-unchanged. Level-2 HDR (scene-referred >1.0,
+// new shader/EOTF/texture) remains a future pipeline v2, NOT this.
+//
+// Determinism caveat: LibRaw (like libvips) is not bit-identical across CPU
+// architectures — mint on one pinned arch (the CI runner).
+// ---------------------------------------------------------------------------
+export const DEMOSAIC = {
+  algorithm: 'VNG', // single-threaded → no OpenMP nondeterminism
+  whiteBalance: 'camera', // use_camera_wb=true, use_auto_wb=false
+  gamma: [2.4, 12.92], // sRGB transfer curve
+  outputColor: 'sRGB',
+  noAutoBright: true,
+  highlightMode: 'clip',
+  outputBps: 16,
+};
+
+// Recognized camera-RAW input extensions (lowercase, leading dot). Detection is
+// case-insensitive in index.mjs. Part of the v1 freeze (which inputs route to
+// the demosaic path).
+export const RAW_EXTENSIONS = [
+  '.dng',
+  '.cr2',
+  '.cr3',
+  '.nef',
+  '.arw',
+  '.raf',
+  '.rw2',
+  '.orf',
+  '.pef',
+  '.srw',
+  '.raw',
+];
+
+// ---------------------------------------------------------------------------
 // Frozen variant set (PRD §6.2.1 "Canonical source + the frozen variant set").
 // Resolutions are long-edge in pixels; the short edge scales proportionally.
 // ---------------------------------------------------------------------------

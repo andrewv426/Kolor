@@ -1,0 +1,182 @@
+{
+  "curationGate": {
+    "forced": false,
+    "passed": true,
+    "stats": {
+      "channels": 3,
+      "clippedAnyPixels": 71,
+      "clippedCeilPct": 0.000184,
+      "clippedCombinedPct": 0.000195,
+      "clippedFloorPct": 0.000011,
+      "clippedHighPixels": 67,
+      "clippedLowPixels": 4,
+      "height": 4932,
+      "totalPixels": 36378432,
+      "width": 7376
+    },
+    "thresholdPct": 2
+  },
+  "delivery": {
+    "encoding": "12bit-two-plane-webp",
+    "hi": {
+      "bytes": 2900504,
+      "file": "master16-hi.webp",
+      "format": "webp",
+      "height": 1369,
+      "sha256": "5a12f7e8ebe66cb80c2813b51834b34d56cf72c142c20cdc515c14f336091e1a",
+      "width": 2048
+    },
+    "lo": {
+      "bytes": 4205658,
+      "file": "master16-lo.webp",
+      "format": "webp",
+      "height": 1369,
+      "sha256": "be9e5881f57ed96accb47b7b15491cac8f437c943e79a56f9094bdc76d0511a2",
+      "width": 2048
+    },
+    "note": "Web-delivery two-plane lossless WebP. hi = top byte of each 16-bit RGB sample; lo = top nibble of the low byte replicated to a full byte ((nib<<4)|nib). Decode: nib=lo>>4; v=(hi<<8)|(nib<<4)|nib. NOT bit-identical to master16.png (bottom 4 bits dropped); recombines bit-exactly to the 12-bit-quantized master samples (recombinesTo).",
+    "pixelDataSha": "4fcf06077d238edeac9e8577904d0d59332b3722d6ef3feb6bb8e24343231c63",
+    "planes": {
+      "hi": {
+        "bits": "top byte (v>>8)",
+        "plane": "hi"
+      },
+      "lo": {
+        "bits": "(((v>>4)&0xF)<<4)|((v>>4)&0xF)",
+        "plane": "lo"
+      }
+    },
+    "recombinesTo": "6d5165500a2e5e5d80097e9f3a08cecfba36b95d3c1f2c9df7d0f5fd32ce7994"
+  },
+  "demosaic": {
+    "algorithm": "VNG",
+    "gamma": [
+      2.4,
+      12.92
+    ],
+    "highlightMode": "clip",
+    "librawVersion": "(0, 22, 1)",
+    "noAutoBright": true,
+    "outputBps": 16,
+    "outputColor": "sRGB",
+    "rawpyVersion": "0.27.0",
+    "tool": "rawpy",
+    "whiteBalance": "camera"
+  },
+  "encoders": {
+    "jpeg": {
+      "chromaSubsampling": "4:2:0",
+      "mozjpeg": true,
+      "progressive": true,
+      "quality": 90
+    },
+    "planeWebp": {
+      "effort": 6,
+      "lossless": true,
+      "smartSubsample": false
+    },
+    "png": {
+      "adaptiveFiltering": false,
+      "colourspace": "rgb16",
+      "compressionLevel": 9,
+      "effort": 10,
+      "palette": false
+    },
+    "webp": {
+      "alphaQuality": 100,
+      "effort": 6,
+      "quality": 82,
+      "smartSubsample": false
+    }
+  },
+  "pipeline": "v1",
+  "preprocessing": {
+    "ffmpegDeterminismFlags": [
+      "-fflags",
+      "+bitexact",
+      "-flags:v",
+      "+bitexact",
+      "-map_metadata",
+      "-1"
+    ],
+    "filterGraph": "format=rgb48le,deband=1thr=0.0059:2thr=0.0059:3thr=0.0059:4thr=0.0059:range=16:blur=1:coupling=0,hqdn3d=2:1:2:3,format=rgb48le",
+    "filterParams": {
+      "deband": {
+        "1thr": 0.0059,
+        "2thr": 0.0059,
+        "3thr": 0.0059,
+        "4thr": 0.0059,
+        "blur": true,
+        "coupling": false,
+        "range": 16
+      },
+      "hqdn3d": {
+        "chroma_spatial": 1,
+        "chroma_tmp": 3,
+        "luma_spatial": 2,
+        "luma_tmp": 2
+      }
+    },
+    "intermediatePixFmt": "rgb48le",
+    "mlDenoiseModel": null,
+    "mlDenoiseWeightsSha256": null
+  },
+  "resampleKernel": "lanczos3",
+  "resolutionGate": {
+    "forced": false,
+    "inputLongEdgePx": 7376,
+    "minLongEdgePx": 2048,
+    "passed": true
+  },
+  "source": {
+    "bytes": 46896111,
+    "filename": "pk1.pef",
+    "sha256": "068c902e7b38ac31c7c6eca5c55f69ca395ec6aa7170489281b692a893d0fee9"
+  },
+  "tools": {
+    "ffmpeg": "6.0",
+    "libpng": "1.6.58",
+    "libraw": "(0, 22, 1)",
+    "libvips": "8.18.3",
+    "libwebp": "1.6.0",
+    "mozjpeg": "0826579",
+    "node": "v26.0.0",
+    "prepareMaster": "1.0.0",
+    "python": "3.10.20",
+    "rawpy": "0.27.0",
+    "sharp": "0.35.1",
+    "zlibNg": "2.3.3"
+  },
+  "variants": {
+    "ai768": {
+      "bitDepthPerChannel": 8,
+      "bytes": 59073,
+      "channels": 3,
+      "file": "ai768.jpg",
+      "format": "jpeg",
+      "height": 514,
+      "sha256": "4febc6c4c8d8c56657c46f64135958b8d7c275849c516c97c804711960d6b31e",
+      "width": 768
+    },
+    "master16": {
+      "bitDepthPerChannel": 16,
+      "bytes": 16075454,
+      "channels": 3,
+      "file": "master16.png",
+      "format": "png",
+      "height": 1369,
+      "sha256": "e8ffab5988c500022f27ca84d2b5569c05e81900d43c8f3fecc574bf4807920f",
+      "width": 2048
+    },
+    "preview8": {
+      "bitDepthPerChannel": 8,
+      "bytes": 53772,
+      "channels": 3,
+      "file": "preview8.webp",
+      "format": "webp",
+      "height": 685,
+      "sha256": "2f5aa2e233d97a25d94a855e4873e4354294d40b59024e56faa249fc114bc5b2",
+      "width": 1024
+    }
+  }
+}

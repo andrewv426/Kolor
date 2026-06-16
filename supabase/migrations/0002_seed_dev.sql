@@ -49,27 +49,27 @@ insert into public.daily_photos (
   'a0000000-0000-0000-0000-000000000001'::uuid,
   current_date,       -- today so it is "today's puzzle" in local dev
   1,
-  'Highland Pass',
+  'Alpine',
   'dev-001/master16.png',
   'dev-001/preview8.webp',
   'dev-001/ai768.jpg',
   'dev-001/master16-hi.webp',
   'dev-001/master16-lo.webp',
   2048,
-  1365,
+  1368,
   '{
     "pipeline": "v1",
-    "source": {"filename": "ls-1018.jpg"},
+    "source": {"filename": "b_fuji.raf"},
     "variants": {
-      "master16": {"width": 2048, "height": 1365, "format": "png"},
-      "preview8": {"width": 1024, "height": 683,  "format": "webp"},
-      "ai768":   {"width": 768,  "height": 512,  "format": "jpeg"}
+      "master16": {"width": 2048, "height": 1368, "format": "png"},
+      "preview8": {"width": 1024, "height": 684,  "format": "webp"},
+      "ai768":   {"width": 768,  "height": 513,  "format": "jpeg"}
     },
     "delivery": {
       "encoding": "12bit-two-plane-webp",
-      "recombinesTo": "0708241c9ca2375b846379103c429ffbfd7266652eb966d17018b72185a96aa2",
-      "hi": {"file": "master16-hi.webp", "width": 2048, "height": 1365, "format": "webp", "sha256": "1875cad6eb2f0fa2e24ce82b229737eedf1776e1bf25d33dad4721f30ad7780b"},
-      "lo": {"file": "master16-lo.webp", "width": 2048, "height": 1365, "format": "webp", "sha256": "ec128815f6fc5037669e48921bcefa9a8cc82be83f42dbd8d468c5e5de8b9863"}
+      "recombinesTo": "45ea933acba9594cd8af60da16dde2f142e1d1195c9760399a0d1b71f38ef048",
+      "hi": {"file": "master16-hi.webp", "width": 2048, "height": 1368, "format": "webp", "sha256": "0244078b6cf0e62650c1271b83cc7e5e7a08db6c69cd68a70a998e3006b27122"},
+      "lo": {"file": "master16-lo.webp", "width": 2048, "height": 1368, "format": "webp", "sha256": "9d263553320bdd6ed44abec175e647daad33d361155e66b0a75fcb2249038c3e"}
     }
   }'::jsonb,
   'v1',
