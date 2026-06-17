@@ -91,6 +91,14 @@ export function Photo({
   const [progress, setProgress] = useState<number | 'pulse' | null>(
     showProgress ? 0 : null,
   );
+  // Editor-only instant placeholder (opt-in via showProgress). We paint the
+  // tiny preview8 (≈95KB, decodes ~instantly) under the WebGL <canvas> so the
+  // photo is visible in ~50ms instead of after the multi-MB master finishes
+  // streaming + decoding. `revealed` flips true once the master is decoded AND
+  // the first renderer.render(tone) has run — only then do we fade the canvas
+  // in over the placeholder. Purely a loading affordance: it never feeds the
+  // renderer, never touches halfData/the shader, and is gone before any edit.
+  const [revealed, setRevealed] = useState(false);
 
   // Create + load the renderer once per photo.
   useEffect(() => {
@@ -110,7 +118,10 @@ export function Photo({
     }
     rendererRef.current = renderer;
 
-    if (showProgress) setProgress(0);
+    if (showProgress) {
+      setProgress(0);
+      setRevealed(false);
+    }
     (async () => {
       try {
         const master = await getDecodedMaster(
@@ -130,6 +141,9 @@ export function Photo({
         setTier(t);
         onTier?.(t);
         setProgress(null);
+        // First master frame is on the canvas — fade it in over the
+        // preview8 placeholder (next paint, so the opacity transition runs).
+        setRevealed(true);
       } catch {
         if (cancelled) return;
         renderer.destroy();
@@ -183,11 +197,39 @@ export function Photo({
       className={`${styles.photo} ${fit === 'contain' ? styles.fitContain : ''} ${className}`}
       style={{ borderRadius: radius, ...style }}
     >
-      {/* WebGL canvas — hidden until a non-C tier is confirmed */}
+      {/* Instant preview8 placeholder — editor-only (showProgress), painted
+          under the canvas and faded out once the master frame is on screen.
+          Not rendered on Tier C (the CSS-filter <img> below owns that path) and
+          dropped once `revealed`, so it adds nothing to steady state. */}
+      {showProgress && tier !== 'C' && !revealed ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={photo.preview8Url}
+          alt=""
+          className={styles.placeholder}
+          aria-hidden
+          // Decode synchronously off the main render path; harmless if it 404s
+          // (the canvas reveal still happens) so no onError handling here.
+        />
+      ) : null}
+
+      {/* WebGL canvas — hidden until a non-C tier is confirmed. On the editor
+          path (showProgress) it starts transparent and fades in over the
+          placeholder once `revealed`; elsewhere it shows immediately. Opacity is
+          purely visual — the drawing buffer (and captureRef's toDataURL) is
+          unaffected. */}
       <canvas
         ref={canvasRef}
-        className={styles.canvas}
-        style={{ display: tier === 'C' ? 'none' : 'block' }}
+        className={`${styles.canvas} ${showProgress ? styles.canvasFade : ''}`}
+        style={{
+          display: tier === 'C' ? 'none' : 'block',
+          // The opacity gate is LOAD-BEARING on `showProgress`: only the editor
+          // resets `revealed` on a photo change (the effect above). Non-editor
+          // surfaces (gallery tiles / inspect / hero / share) must NEVER key
+          // canvas opacity off `revealed` — a stale `revealed=true` would blank
+          // a re-rendered tile. Keep their opacity untouched (null branch).
+          ...(showProgress ? { opacity: revealed ? 1 : 0 } : null),
+        }}
         aria-hidden
       />
 

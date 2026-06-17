@@ -17,6 +17,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import type { DailyPhoto } from '@/lib/types';
 import { TONE_KEYS } from '@/lib/types';
 import { getAdapter } from '@/lib/data';
+import { preloadMaster } from '@/lib/render';
 import { Photo, type RenderTier } from '@/components/Photo';
 import { Slider } from '@/components/Slider';
 import { useAppState } from '@/components/AppState';
@@ -70,6 +71,9 @@ export function EditorScreen() {
     (async () => {
       const today = await adapter.getToday();
       if (!alive) return;
+      // Start the ~7.8 MB master fetch + decode immediately (covers a direct
+      // /edit entry / refresh where there's no landing hero to warm the cache).
+      preloadMaster(today);
       setPhoto(today);
 
       const fromId = params.get('from');
