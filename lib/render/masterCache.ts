@@ -41,7 +41,10 @@ async function fetchWithProgress(
   url: string,
   onChunk: (downloaded: number, total: number) => void,
 ): Promise<{ buffer: ArrayBuffer; ok: boolean; status: number }> {
-  const res = await fetch(url);
+  // `priority: 'high'` hints the browser to schedule the ~7.8 MB master planes
+  // ahead of lower-priority work (they're the LCP-critical resource). Harmless
+  // where unsupported (ignored).
+  const res = await fetch(url, { priority: 'high' });
   if (!res.ok || !res.body) {
     const buffer = res.ok ? await res.arrayBuffer() : new ArrayBuffer(0);
     return { buffer, ok: res.ok, status: res.status };
@@ -141,4 +144,18 @@ export function getDecodedMaster(
     onProgress?.({ fraction: 1 });
   }
   return p;
+}
+
+/**
+ * Warm the shared decoded-master cache for `photo` as early as possible —
+ * call it the moment `getToday()` resolves (landing/editor data load) so the
+ * ~7.8 MB plane fetch + decode starts before the <Photo> stage even mounts and
+ * is already in flight (or done) when the user reaches the editor/gallery. It
+ * goes through the SAME coalescing cache as getDecodedMaster, so it never issues
+ * a duplicate request and never races the on-screen render — it just moves the
+ * start time earlier. Fire-and-forget: a rejection is swallowed (and evicted by
+ * getDecodedMaster) so the real on-screen load can retry through its own path.
+ */
+export function preloadMaster(photo: DailyPhoto): void {
+  void getDecodedMaster(photo).catch(() => {});
 }

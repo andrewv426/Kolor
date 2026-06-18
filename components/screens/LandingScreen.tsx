@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { DailyPhoto, Submission } from '@/lib/types';
 import { getAdapter } from '@/lib/data';
+import { preloadMaster } from '@/lib/render';
 import { DEFAULT_TONE } from '@/lib/types';
 import { Photo } from '@/components/Photo';
 import { Smiley } from '@/components/Smiley';
@@ -40,6 +41,10 @@ export function LandingScreen() {
     (async () => {
       const today = await adapter.getToday();
       if (!alive) return;
+      // Warm the shared master cache the instant the photo is known so the
+      // ~7.8 MB plane fetch + decode starts before the hero <Photo> mounts and
+      // is ready when the user clicks into the editor / gallery.
+      preloadMaster(today);
       setPhoto(today);
       const sub = await adapter.getMySubmission(today.id);
       if (!alive) return;
