@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:render": "node --test \"lib/render/__tests__/**/*.test.mjs\""
+    "typecheck": "tsc --noEmit",
+    "test:render": "node --test \"lib/render/__tests__/**/*.test.mjs\"",
+    "test:unit": "node --test \"lib/__tests__/**/*.test.mjs\"",
+    "test": "npm run test:render && npm run test:unit"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
