@@ -68,7 +68,7 @@ function Gallery({ tone, src, presets, liked, toggleLike, openDetail, go, device
         <P2 tone={tone} src={src} radius="8px" style={{ width: 46, height: 46 }}></P2>
         <div className="col" style={{ gap: 3 }}>
           <span className="row" style={{ gap: 8 }}><span className="badge accent">YOU</span><span className="mono" style={{ fontSize: 12.5, whiteSpace: "nowrap" }}>{user || "Anonymous"}</span></span>
-          <span className="dim" style={{ fontSize: 13, whiteSpace: "nowrap" }}>Top 8% · 23 likes</span>
+          <span className="dim" style={{ fontSize: 13, whiteSpace: "nowrap" }}>#3 of 9 · 23 likes</span>
         </div>
       </div>
       <button className="btn sm" onClick={() => go("share")}>Share</button>

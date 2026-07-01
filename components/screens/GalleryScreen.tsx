@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { DailyPhoto, Submission } from '@/lib/types';
 import { getAdapter } from '@/lib/data';
+import { computePlacement, formatRank } from '@/lib/placement';
 import { GalleryTile } from '@/components/GalleryTile';
 import { Photo } from '@/components/Photo';
 import { useIsDesktop } from '@/components/useIsDesktop';
@@ -88,8 +89,16 @@ export function GalleryScreen() {
   const sorted = useMemo(() => {
     const a = [...subs];
     if (sort === 'Top') return a.sort((x, y) => y.likeCount - x.likeCount);
-    return a.reverse(); // "New"
+    // "New" — most recent first by real submission time (your own edit, minted
+    // just now, sorts to the top). Legacy rows without a timestamp sort last.
+    return a.sort((x, y) => (y.submittedAt ?? 0) - (x.submittedAt ?? 0));
   }, [subs, sort]);
+
+  // Real leaderboard placement for the "You" strip (replaces hardcoded "Top 8%").
+  const myPlacement = useMemo(
+    () => (mine ? computePlacement(subs, mine.id) : null),
+    [subs, mine],
+  );
 
   // Early/sparse heuristic: very few edits so far.
   const early = !loading && subs.length > 0 && subs.length <= 4;
@@ -146,7 +155,8 @@ export function GalleryScreen() {
           <div className="col" style={{ gap: 3 }}>
             <span className="h-md">Today&apos;s gallery</span>
             <span className="dim" style={{ fontSize: 13 }}>
-              {count.toLocaleString()} edits{sort === 'Top' ? ' · by likes' : ''}
+              {count.toLocaleString()} edits
+              {sort === 'Top' ? ' · by likes' : ' · newest first'}
             </span>
           </div>
           <button
@@ -197,7 +207,7 @@ export function GalleryScreen() {
                 </span>
               </span>
               <span className="dim" style={{ fontSize: 13 }}>
-                Top 8% · {mine.likeCount} likes
+                {formatRank(myPlacement)} · {mine.likeCount} likes
               </span>
             </div>
           </div>

@@ -77,6 +77,12 @@ export interface Submission {
   likeCount: number;
   likedByMe: boolean;
   timeTakenMs: number | null;
+  /**
+   * Submission time, epoch ms (maps to the `submissions.created_at` column in
+   * supabase mode). Drives the gallery "New" sort. Null only for legacy rows
+   * minted before this field existed.
+   */
+  submittedAt: number | null;
 }
 
 /** Per-key UI metadata (labels + poles) — design handoff "edit engine" table. */

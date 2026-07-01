@@ -51,6 +51,7 @@ interface SubmissionRow {
   schema_version: number;
   time_taken_ms: number | null;
   like_count: number;
+  created_at: string;
   // Supabase returns the joined table as an array (even for single FK joins).
   profiles?: { display_name: string }[] | null;
 }
@@ -201,7 +202,7 @@ export class SupabaseAdapter implements DataAdapter {
 
     const { data, error } = await supabase
       .from('submissions')
-      .select('id, daily_photo_id, player_id, ai_model, settings, schema_version, time_taken_ms, like_count')
+      .select('id, daily_photo_id, player_id, ai_model, settings, schema_version, time_taken_ms, like_count, created_at')
       .eq('daily_photo_id', photoId)
       .eq('player_id', userId)
       .maybeSingle<SubmissionRow>();
@@ -260,7 +261,7 @@ export class SupabaseAdapter implements DataAdapter {
         schema_version: 1,
         time_taken_ms:  timeTakenMs,
       })
-      .select('id, daily_photo_id, player_id, ai_model, settings, schema_version, time_taken_ms, like_count')
+      .select('id, daily_photo_id, player_id, ai_model, settings, schema_version, time_taken_ms, like_count, created_at')
       .single<SubmissionRow>();
 
     if (error) {
@@ -297,6 +298,7 @@ export class SupabaseAdapter implements DataAdapter {
         schema_version,
         time_taken_ms,
         like_count,
+        created_at,
         profiles (display_name)
       `)
       .eq('daily_photo_id', photoId)
@@ -434,6 +436,7 @@ function rowToSubmission(
     likeCount:    row.like_count,
     likedByMe,
     timeTakenMs:  row.time_taken_ms,
+    submittedAt:  row.created_at ? Date.parse(row.created_at) : null,
   };
 }
 

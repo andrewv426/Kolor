@@ -25,7 +25,7 @@ function GalleryGrid({ device }) {
   );
   const youStrip = (
     <div style={{ padding: desk ? "12px 22px" : "10px 14px", background: "var(--accent-soft)", borderBottom: "1.5px solid var(--line)" }} className="row between">
-      <span className="row" style={{ gap: 9 }}><GBadge fill>YOU</GBadge><GPhoto label="" h={40} style={{ width: 40, borderRadius: 6 }} /><span className="mono" style={{ fontSize: 11 }}>Top 8% · 23 ♡</span></span>
+      <span className="row" style={{ gap: 9 }}><GBadge fill>YOU</GBadge><GPhoto label="" h={40} style={{ width: 40, borderRadius: 6 }} /><span className="mono" style={{ fontSize: 11 }}>#3 of 9 · 23 ♡</span></span>
       <GBtn ghost>View →</GBtn>
     </div>
   );

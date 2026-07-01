@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { DailyPhoto, Submission } from '@/lib/types';
 import { getAdapter } from '@/lib/data';
+import { computePlacement, formatRank, type Placement } from '@/lib/placement';
 import { preloadMaster } from '@/lib/render';
 import { DEFAULT_TONE } from '@/lib/types';
 import { Photo } from '@/components/Photo';
@@ -33,6 +34,7 @@ export function LandingScreen() {
 
   const [photo, setPhoto] = useState<DailyPhoto | null>(null);
   const [mine, setMine] = useState<Submission | null>(null);
+  const [placement, setPlacement] = useState<Placement | null>(null);
   const [showHowTo, setShowHowTo] = useState(false);
 
   useEffect(() => {
@@ -49,6 +51,13 @@ export function LandingScreen() {
       const sub = await adapter.getMySubmission(today.id);
       if (!alive) return;
       setMine(sub);
+      // If already played, compute the real placement from the day's gallery
+      // for the "played" block (replaces the old hardcoded "Top 8%").
+      if (sub) {
+        const gallery = await adapter.getGallery(today.id);
+        if (!alive) return;
+        setPlacement(computePlacement(gallery, sub.id));
+      }
     })();
     return () => {
       alive = false;
@@ -105,7 +114,13 @@ export function LandingScreen() {
               </p>
             )}
             {played ? (
-              <PlayedBlock photo={photo} mine={mine} router={router} desktop />
+              <PlayedBlock
+                photo={photo}
+                mine={mine}
+                placement={placement}
+                router={router}
+                desktop
+              />
             ) : (
               <div className="row" style={{ gap: 14, marginTop: 6 }}>
                 <button
@@ -178,7 +193,12 @@ export function LandingScreen() {
           </h1>
 
           {played ? (
-            <PlayedBlock photo={photo} mine={mine} router={router} />
+            <PlayedBlock
+              photo={photo}
+              mine={mine}
+              placement={placement}
+              router={router}
+            />
           ) : (
             <>
               <button
@@ -214,11 +234,13 @@ export function LandingScreen() {
 function PlayedBlock({
   photo,
   mine,
+  placement,
   router,
   desktop = false,
 }: {
   photo: DailyPhoto;
   mine: Submission | null;
+  placement: Placement | null;
   router: ReturnType<typeof useRouter>;
   desktop?: boolean;
 }) {
@@ -251,7 +273,9 @@ function PlayedBlock({
           <div className="col" style={{ gap: 5 }}>
             <span className="row" style={{ gap: 8 }}>
               <span className="badge accent">✓ Played</span>
-              <span style={{ fontWeight: 600 }}>Top 8% today</span>
+              {placement ? (
+                <span style={{ fontWeight: 600 }}>{formatRank(placement)}</span>
+              ) : null}
             </span>
             <span className="mono dim" style={{ fontSize: 13 }}>
               {likes} ♥ · ranked by likes
@@ -299,16 +323,18 @@ function PlayedBlock({
         <div className="col" style={{ gap: 3 }}>
           <span className="row" style={{ gap: 7 }}>
             <span className="badge accent">✓ Played</span>
-            <span
-              style={{
-                color: '#fff',
-                fontWeight: 600,
-                fontSize: 14,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Top 8%
-            </span>
+            {placement ? (
+              <span
+                style={{
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: 14,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {formatRank(placement)}
+              </span>
+            ) : null}
           </span>
           <span
             className="mono"

@@ -15,7 +15,7 @@ function ShareSquare({ device }) {
       <SPhoto label="YOUR EDIT" h={170} style={{ borderRadius: 0 }} />
       <div style={{ padding: "13px 14px", display: "flex", flexDirection: "column", gap: 11 }}>
         <div className="row between">
-          <span style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 17 }}>Top 8% today</span>
+          <span style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 17 }}>#3 of 9</span>
           <span className="mono" style={{ fontSize: 12 }}>23 ♡</span>
         </div>
         <div>
@@ -79,7 +79,7 @@ function ShareReceipt({ device }) {
       <div style={dash}></div>
       <SPhoto label="EDIT" h={88} style={{ borderRadius: 0 }} />
       <div style={dash}></div>
-      <div className="row between" style={{ fontSize: 11 }}><span style={{ color: "var(--ink2)" }}>RANK</span><span>TOP 8%</span></div>
+      <div className="row between" style={{ fontSize: 11 }}><span style={{ color: "var(--ink2)" }}>RANK</span><span>#3 OF 9</span></div>
       <div className="row between" style={{ fontSize: 11 }}><span style={{ color: "var(--ink2)" }}>LIKES</span><span>23 ♡</span></div>
       <div className="row between" style={{ fontSize: 11 }}><span style={{ color: "var(--ink2)" }}>TIME</span><span>3:42</span></div>
       <div style={dash}></div>

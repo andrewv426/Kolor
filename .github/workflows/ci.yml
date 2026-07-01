@@ -1,0 +1,68 @@
+name: CI
+
+# Lint, typecheck, tests and build on every PR and on pushes to main.
+# There was previously no build/test CI (only the Claude Code review actions),
+# so lint/typecheck/test:render never ran automatically. Node 24 LTS is used so
+# the clampToneSettings unit test can import the real lib/types.ts via native
+# TypeScript type-stripping (default-on since Node 23.6).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  app:
+    name: lint · typecheck · test · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # Runs before `build` so there is no stale .next/types to typecheck — the
+      # tsconfig includes .next/types, which only exists after a build.
+      - name: Typecheck
+        run: npm run typecheck
+
+      # test:render (frozen-pipeline conformance) + test:unit (clampToneSettings).
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  verify-planes:
+    name: two-plane delivery equivalence (dev-001)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: scripts/prepare-master/package-lock.json
+
+      # Proves the shipped two-plane WebP planes recombine bit-exactly to the
+      # 12-bit-quantized master16 (PRD §6.2.1 / invariant #2). This is a pure
+      # DECODE-equivalence check (deterministic across arch), not a re-mint.
+      # SCOPE: dev-001 only — dev-002..010 ship planes-only (no master16.png),
+      # so all-dir coverage is blocked on the manifest-drift reconciliation
+      # (roadmap: reconcile dev-photo manifest drift + ship or trim master16).
+      - name: Install prepare-master deps
+        working-directory: scripts/prepare-master
+        run: npm ci
+
+      - name: Verify planes (dev-001)
+        working-directory: scripts/prepare-master
+        run: node verify-planes.mjs

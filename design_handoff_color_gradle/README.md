@@ -95,7 +95,7 @@ Ten sliders, each integer **−100…+100**, default 0. Labels and poles:
 - **Purpose:** Enter the day's puzzle. No login wall.
 - **Phone layout:** Full-bleed photo with a top-to-bottom scrim. Top row: smiley logo + "color-gradle". Bottom: solid `Day {n}` badge, eyebrow "Today's theme", serif theme title, primary CTA "Play today's photo", a muted "5:00 · no login" line and an underlined "How to play" link.
 - **Desktop layout:** Two columns. Left: logo, dateline eyebrow ("Day 128 · Thursday, June 11"), large serif title, one-line description ("One unedited photo. Five minutes. Ten sliders. Submit your look to see how everyone, human and AI, edited the same shot."), CTA + "How to play" ghost button. Right: **contained hero stage** — the photo in a fixed **4:5** frame (never stretched/cropped to fill), `Day {n}` + "Unedited" badges floating top corners.
-- **Returning/already-played state:** CTA area is replaced by: your edit thumbnail (4:5), a `✓ Played` accent badge, "Top 8%", "23 ♥", "next photo in 06:14:22" countdown, and a primary "See today's gallery" button (+ "Share result" on desktop).
+- **Returning/already-played state:** CTA area is replaced by: your edit thumbnail (4:5), a `✓ Played` accent badge, a **placement by likes** (e.g. "#3 of 9", shown once the day's gallery loads), "23 ♥ · ranked by likes", "next photo in 06:14:22" countdown, and a primary "See today's gallery" button (+ "Share result" on desktop).
 
 ### 2. Editor (the 5-minute game) — layout **E2 "full slider list"**
 - **Purpose:** Make your edit before the clock runs out.
@@ -112,20 +112,23 @@ Ten sliders, each integer **−100…+100**, default 0. Labels and poles:
 
 ### 4. Reveal Gallery — layout **G1 "uniform grid"**
 - **Purpose:** See every edit of the same photo.
-- **Header:** serif "Today's gallery", subtext "{count} edits · by likes", "Your result" ghost link. **Sort tabs:** segmented control **Top / New** (Top = by likes; "Surprising" was removed). 
-- **"You" strip:** a subtle accent-tinted row pinned under the header — your edit thumb, `YOU` badge, handle (or "Anonymous"), "Top 8% · 23 likes", "Share" button.
+- **Header:** serif "Today's gallery", subtext "{count} edits · by likes" (under the **New** tab it reads "· newest first"), "Your result" ghost link. **Sort tabs:** segmented control **Top / New** (Top = by likes; New = by real submission time; "Surprising" was cut from the MVP). 
+- **"You" strip:** a subtle accent-tinted row pinned under the header — your edit thumb, `YOU` badge, handle (or "Anonymous"), a **real placement** "#3 of 9 · 23 likes" (rank by likes within the day's gallery, `#rank of total` — this replaces the old hardcoded "Top 8%"; a "Top X%" percentile follows with the real Supabase leaderboard), "Share" button. (In **local dev mode only**, a "↺ Play again" reset also appears here — it clears the stored submission to reopen the one-per-day lock for testing; it is null in production, like `/admin`.)
 - **Grid:** uniform tiles (phone 2-col, desktop 4-col), each 1:1. Tile shows the edit (same photo re-rendered with that recipe), a dashed amber `AI` badge top-left for model edits, and a bottom overlay with avatar + name + a heart/likes count. Hearts are tappable (optimistic like toggle). Tap a tile → Inspect.
 - **Early/sparse state:** a quiet bordered banner "You're early. Only a few edits so far — more roll in through the day." and fewer tiles.
 
 ### 5. Edit Detail / Inspect — layout **D1 "photo + recipe"**
 - **Purpose:** See the exact slider values behind any edit; copy them.
-- **Phone:** the edit (1:1) on top with a "Hold for original" press button (same pointer-capture press-and-hold as the editor compare — robust to the label-width change; shows "Original" while held) and "‹ Gallery" back. Below: creator row (avatar + handle, or dashed `AI` badge with model name — **no "AI ·" prefix**, just the model name) + like button; eyebrow "The recipe"; all 10 sliders rendered **read-only** (knob, no input); primary "Load these onto my photo".
-- **Desktop:** two columns — left the edit (4:5) + hold-for-original; right creator row, divider, "The recipe" + "v1", a 2-col read-only slider grid, "Load these onto my photo" + helper "re-renders your raw photo with their exact values".
-- **"Load onto mine"** copies that recipe into your tone and returns to the Editor.
+- **Top eyebrow:** sentence-case "edit · see · pipeline v1" next to the "‹ Gallery" back link, naming the frozen render pipeline.
+- **Phone:** the edit (1:1) on top with a "Hold for original" press button (same pointer-capture press-and-hold as the editor compare — robust to the label-width change; shows "Original" while held) and "‹ Gallery" back. Below: creator row (avatar + handle, or dashed `AI` badge with model name — **no "AI ·" prefix**, just the model name) + like button; eyebrow "The recipe" + "v1" badge; all 10 sliders rendered **read-only** (knob, no input); then the action slot (see below).
+- **Desktop:** two columns — left the edit (4:5) + hold-for-original; right creator row, divider, "The recipe" + "v1", a 2-col read-only slider grid, then the action slot.
+- **Action slot is conditional on whether you've already locked today's edit:**
+  - **Not yet submitted** → primary "Load these onto my photo" + helper "re-renders your raw photo with their exact values". Routes to `/edit?from=<id>`, copying that recipe into your tone.
+  - **Already locked today** (the common case, since Inspect is reached *after* submitting to reveal the gallery) → no load button; instead a muted helper "You've locked today's edit. Hold for original to compare with the unedited photo." This respects the one-submission-per-day rule — you can study any recipe but can't re-edit.
 
 ### 6. Result / Share — treatment **S3 "receipt stub"**
 - **Purpose:** A distinctive, spoiler-safe shareable.
-- A narrow **receipt** card, all mono, dashed rules between sections: "COLOR·GRADLE" / "DAY {n} — {THEME}" header; the edit (1:1); rows PLAYER (handle or ANONYMOUS) / RANK (TOP 8%) / LIKES (23 ♥) / TIME (3:42); "COLOR SIGNATURE" swatch row; footer "✦ NEXT PHOTO IN 06:14:22 ✦". Buttons below: "‹ Gallery", "Copy card", "Share". (Actual share-image rendering — e.g. canvas → PNG — is not built; wire it up in production.)
+- A narrow **receipt** card, all mono, dashed rules between sections: "COLOR·GRADLE" / "DAY {n} — {THEME}" header; the edit (1:1); rows PLAYER (handle or ANONYMOUS) / RANK (a real placement by likes, e.g. `#3 OF 9` — replaces the old hardcoded `TOP 8%`) / LIKES (23 ♥) / TIME (3:42); "COLOR SIGNATURE" swatch row; footer "✦ NEXT PHOTO IN 06:14:22 ✦". Buttons below: "‹ Gallery", "Copy card", "Share". (Actual share-image rendering — e.g. canvas → PNG — is not built; wire it up in production.)
 
 ### First-run "How to play" modal
 3 numbered steps: "One photo a day" / "5 minutes, 10 sliders" / "Submit to unlock". Shows once (persisted), re-openable from the "How to play" link. Contained within the device frame; dismiss via ✕ or "Let's play".
