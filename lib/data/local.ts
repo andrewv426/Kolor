@@ -169,6 +169,12 @@ interface SeedEdit {
   tone: ToneSettings;
   likeCount: number;
   timeTakenMs: number | null;
+  /**
+   * How long ago this seed "submitted", in minutes, relative to now. Drives the
+   * gallery "New" sort so seeds show a believable recency spread; the user's own
+   * (just-minted) submission sorts newest. Values are spread across the day.
+   */
+  submittedMinutesAgo: number;
 }
 
 const SEED_EDITS: SeedEdit[] = [
@@ -176,51 +182,51 @@ const SEED_EDITS: SeedEdit[] = [
     id: 'seed-01', playerId: 'seed-player-01', displayName: 'CrimsonOtter47',
     aiModel: null,
     tone: clampToneSettings({ temp: -35, tint: -10, exposure: -22, contrast: 18, highlights: -30, shadows: 20, whites: -10, blacks: -8, vibrance: -15, saturation: -20 }),
-    likeCount: 14, timeTakenMs: 187000,
+    likeCount: 14, timeTakenMs: 187000, submittedMinutesAgo: 42,
   },
   {
     id: 'seed-02', playerId: 'seed-player-02', displayName: 'TwilightFalcon',
     aiModel: null,
     tone: clampToneSettings({ temp: 48, tint: 8, exposure: 15, contrast: 25, highlights: -40, shadows: 35, whites: 20, blacks: -5, vibrance: 40, saturation: 20 }),
-    likeCount: 27, timeTakenMs: 243000,
+    likeCount: 27, timeTakenMs: 243000, submittedMinutesAgo: 17,
   },
   {
     id: 'seed-03', playerId: 'seed-player-03', displayName: 'MidnightHeron22',
     aiModel: null,
     tone: clampToneSettings({ temp: 5, tint: -5, exposure: -10, contrast: 65, highlights: -60, shadows: -20, whites: 30, blacks: -40, vibrance: 20, saturation: 10 }),
-    likeCount: 19, timeTakenMs: 132000,
+    likeCount: 19, timeTakenMs: 132000, submittedMinutesAgo: 128,
   },
   {
     id: 'seed-04', playerId: 'seed-player-04', displayName: 'SilverMaple9',
     aiModel: null,
     tone: clampToneSettings({ temp: -8, tint: 6, exposure: 8, contrast: -35, highlights: -20, shadows: 50, whites: -15, blacks: 25, vibrance: -30, saturation: -15 }),
-    likeCount: 9, timeTakenMs: 298000,
+    likeCount: 9, timeTakenMs: 298000, submittedMinutesAgo: 240,
   },
   {
     id: 'seed-05', playerId: 'seed-player-05', displayName: 'CoralSparrow',
     aiModel: null,
     tone: clampToneSettings({ temp: 20, tint: 0, exposure: 18, contrast: 30, highlights: -15, shadows: 25, whites: 15, blacks: -10, vibrance: 70, saturation: 45 }),
-    likeCount: 31, timeTakenMs: 178000,
+    likeCount: 31, timeTakenMs: 178000, submittedMinutesAgo: 8,
   },
   {
     id: 'seed-06', playerId: 'seed-player-06', displayName: 'OceanDrifter88',
     aiModel: null,
     tone: clampToneSettings({ temp: -5, tint: 0, exposure: 5, contrast: 40, highlights: -25, shadows: 10, whites: 0, blacks: -20, vibrance: -50, saturation: -100 }),
-    likeCount: 22, timeTakenMs: 95000,
+    likeCount: 22, timeTakenMs: 95000, submittedMinutesAgo: 95,
   },
   {
     // AI player — claude-opus-4.8
     id: 'seed-07', playerId: 'ai-claude-opus-4.8', displayName: 'claude-opus-4.8',
     aiModel: 'claude-opus-4.8',
     tone: clampToneSettings({ temp: 32, tint: -4, exposure: 12, contrast: 45, highlights: -50, shadows: 40, whites: 22, blacks: -18, vibrance: 35, saturation: 8 }),
-    likeCount: 38, timeTakenMs: null,
+    likeCount: 38, timeTakenMs: null, submittedMinutesAgo: 300,
   },
   {
     // AI player — gemini-3-flash
     id: 'seed-08', playerId: 'ai-gemini-3-flash', displayName: 'gemini-3-flash',
     aiModel: 'gemini-3-flash',
     tone: clampToneSettings({ temp: -28, tint: 12, exposure: -5, contrast: 20, highlights: -35, shadows: 45, whites: -5, blacks: -12, vibrance: 15, saturation: -8 }),
-    likeCount: 17, timeTakenMs: null,
+    likeCount: 17, timeTakenMs: null, submittedMinutesAgo: 64,
   },
 ];
 
@@ -229,6 +235,7 @@ function seedToSubmission(
   photoId: string,
   likedByMe: boolean,
   currentLikeCount: number,
+  submittedAt: number,
 ): Submission {
   const tone = seed.tone;
   const settings: EditSettings = {
@@ -250,6 +257,7 @@ function seedToSubmission(
     likeCount:    currentLikeCount,
     likedByMe,
     timeTakenMs:  seed.timeTakenMs,
+    submittedAt,
   };
 }
 
@@ -365,6 +373,7 @@ export class LocalAdapter implements DataAdapter {
       likeCount:   0,
       likedByMe:   false,
       timeTakenMs,
+      submittedAt: Date.now(),
     };
 
     submissions[photoId] = submission;
@@ -397,22 +406,28 @@ export class LocalAdapter implements DataAdapter {
     if (!mySubmission) return [];
 
     const likes = loadLikes();
+    const now = Date.now();
 
     // Build seed submissions with up-to-date likeCount (toggles update the
-    // seed's base count stored in SEED_EDITS).
+    // seed's base count stored in SEED_EDITS). Seed submittedAt is derived from
+    // a per-seed minutes-ago offset so the "New" sort shows a believable spread.
     const seedSubmissions: Submission[] = SEED_EDITS.map((seed) => {
       const likedByMe = likes.has(seed.id);
       const likeCount = seed.likeCount + (likedByMe ? 1 : 0);
-      return seedToSubmission(seed, photoId, likedByMe, likeCount);
+      const submittedAt = now - seed.submittedMinutesAgo * 60_000;
+      return seedToSubmission(seed, photoId, likedByMe, likeCount, submittedAt);
     });
 
-    // User's own submission — mark isYou and apply any self-likes.
+    // User's own submission — mark isYou and apply any self-likes. Fall back to
+    // `now` for legacy rows minted before submittedAt existed so the user's own
+    // edit still sorts newest in "New".
     const myLiked = likes.has(mySubmission.id);
     const myFull: Submission = {
       ...mySubmission,
-      isYou:     true,
-      likedByMe: myLiked,
-      likeCount: mySubmission.likeCount + (myLiked ? 1 : 0),
+      isYou:       true,
+      likedByMe:   myLiked,
+      likeCount:   mySubmission.likeCount + (myLiked ? 1 : 0),
+      submittedAt: mySubmission.submittedAt ?? now,
     };
 
     return [myFull, ...seedSubmissions];

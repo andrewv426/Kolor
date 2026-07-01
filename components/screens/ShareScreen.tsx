@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { DailyPhoto, Submission } from '@/lib/types';
 import { getAdapter } from '@/lib/data';
+import { computePlacement, formatRank, type Placement } from '@/lib/placement';
 import { Photo } from '@/components/Photo';
 import { Signature } from '@/components/Signature';
 import { useUtcCountdown } from '@/components/useCountdown';
@@ -22,6 +23,7 @@ export function ShareScreen() {
 
   const [photo, setPhoto] = useState<DailyPhoto | null>(null);
   const [mine, setMine] = useState<Submission | null>(null);
+  const [placement, setPlacement] = useState<Placement | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -38,6 +40,12 @@ export function ShareScreen() {
         return;
       }
       setMine(sub);
+      // Compute the real placement from the day's gallery (replaces the old
+      // hardcoded "TOP 8%"). Commit-reveal is already satisfied — we just
+      // confirmed this user's own submission exists.
+      const gallery = await adapter.getGallery(today.id);
+      if (!alive) return;
+      setPlacement(computePlacement(gallery, sub.id));
     })();
     return () => {
       alive = false;
@@ -49,6 +57,7 @@ export function ShareScreen() {
   }
 
   const player = (mine.displayName || 'ANONYMOUS').toUpperCase();
+  const rankStr = formatRank(placement).toUpperCase();
   const likes = mine.likeCount;
   const timeStr =
     mine.timeTakenMs != null ? fmtClock(mine.timeTakenMs / 1000) : '—';
@@ -58,7 +67,7 @@ export function ShareScreen() {
   // Web Share API when available, else falls back to copying the same text.
   const cardText =
     `color-gradle · Day ${photo.dayNumber} — ${photo.theme}\n` +
-    `Player: ${player}\nRank: TOP 8%\nLikes: ${likes} ♥\nTime: ${timeStr}\n` +
+    `Player: ${player}\nRank: ${rankStr}\nLikes: ${likes} ♥\nTime: ${timeStr}\n` +
     `Next photo in ${fmtCountdown(ms)}`;
 
   const copyCard = async () => {
@@ -115,7 +124,7 @@ export function ShareScreen() {
         </div>
         <div className={styles.dashed} />
         <Row k="PLAYER" v={player} />
-        <Row k="RANK" v="TOP 8%" />
+        <Row k="RANK" v={rankStr} />
         <Row k="LIKES" v={`${likes} ♥`} />
         <Row k="TIME" v={timeStr} />
         <div className={styles.dashed} />
