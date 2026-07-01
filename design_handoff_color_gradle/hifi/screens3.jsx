@@ -96,7 +96,7 @@ function Share({ tone, src, go, device, day = 128, theme = "Golden Hour Street",
         <P3 tone={tone} src={src} radius="var(--r-xs)" style={{ width: "100%", aspectRatio: "1 / 1" }}></P3>
         <div style={dashed}></div>
         <Row k="PLAYER" v={(user || "ANONYMOUS").toUpperCase()} />
-        <Row k="RANK" v="TOP 8%" />
+        <Row k="RANK" v="#3 OF 9" />
         <Row k="LIKES" v="23 ♥" />
         <Row k="TIME" v="3:42" />
         <div style={dashed}></div>

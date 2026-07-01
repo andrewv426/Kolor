@@ -62,8 +62,8 @@ A strict **commit → reveal** loop (BeReal's "post to view" + Wordle's once-a-d
 3. **Editor (5-min timed game).** Photo fills the screen; slider tray below/side; a calm `mm:ss` countdown top-right; press-and-hold **before/after** compare; **reset**; **Submit** is enabled the whole time (submit early if you like). At `0:00`, **auto-submit** fires with the current sliders — a play is never lost.
 4. **Submit confirm.** "Lock it in? You can't re-edit today." → optimistic local render + write the **settings vector** to the backend. This is the *commit*.
 5. **Reveal transition.** A 1–2s "Unlocking today's gallery…" beat that does real work (generates the share card, fires the gallery query) and supplies the emotional payoff.
-6. **Reveal gallery.** Grid of everyone's edits of the same photo (humans + AI, AI clearly badged). Your edit is pinned top with a **You** marker. Sort tabs: **Top** (likes, default), **New** (recency), **Surprising** (most different from the median — rewards creativity). Tap a tile → **detail view**: large comparison, the **exact slider values** that produced it, a "load these settings to compare against mine" toggle, the creator's handle/AI model name, like count, like button.
-7. **Result / share card.** Spoiler-safe: Day #, your edit thumbnail, a stat line ("Top 8% today • 23 likes"), and a small generative "color signature." One-tap share copies an image card + link. Countdown closes the loop.
+6. **Reveal gallery.** Grid of everyone's edits of the same photo (humans + AI, AI clearly badged). Your edit is pinned top with a **You** marker. Sort tabs: **Top** (likes, default) and **New** (recency). *(A third "Surprising"/most-different-from-median sort was considered and **cut from the MVP** — the design handoff dropped it; revisit post-MVP.)* Tap a tile → **detail view**: large comparison, the **exact slider values** that produced it, a "load these settings to compare against mine" toggle, the creator's handle/AI model name, like count, like button.
+7. **Result / share card.** Spoiler-safe: Day #, your edit thumbnail, a stat line (your placement by likes + like count), and a small generative "color signature." One-tap share copies an image card + link. Countdown closes the loop. *(The current build shows an honest `#rank of total` placement; a "Top X%" percentile follows once the real Supabase leaderboard makes percentiles meaningful.)*
 
 **Design rule:** the *only* path to the dopamine (the gallery + social comparison) is to first produce your own edit.
 
@@ -314,7 +314,7 @@ Determinism here is a **spec-level, perceptual** guarantee, not a bit-level one.
 - **Blind voting:** don't surface creator identity or running like-counts *before* the user forms an opinion (prevents popularity contests and rich-get-richer cascades).
 - **Exposure equalization:** give each edit roughly equal impressions relative to when it was submitted, so **likes-per-impression** (not luck of timing) drives rank — this is what makes a late-day submission still winnable.
 - MVP ships simple like-counts; **architect the schema so a pairwise ("which edit do you prefer?") + Elo ranking can be layered on** for the official leaderboard without a rewrite.
-- Sort tabs: Top / New / Surprising. A user's rank ("Top 8%") feeds the share card.
+- Sort tabs: Top / New (a "Surprising" sort was cut from the MVP — see §6/§11). A user's placement (rank by likes) feeds the share card — the current build shows an honest `#rank of total`; a "Top X%" percentile follows once the real Supabase leaderboard (with exposure-equalized likes-per-impression) makes percentiles meaningful.
 
 ### 6.5 Anonymous identity
 - On first visit: mint a stable identity (see §7.4 — a Supabase **anonymous auth** user; no hand-rolled device id needed). Render a **friendly handle** (adjective-noun-number, e.g. "CrimsonOtter47", from curated brand-safe wordlists → millions of combos) deterministically from the user id, plus a **seeded generated avatar** (identicon/gradient blob). No PII → GDPR-trivial.
@@ -416,11 +416,13 @@ Determinism here is a **spec-level, perceptual** guarantee, not a bit-level one.
 |---|---|
 | **0 — Foundations** (wk 1) | Next.js + Supabase project; schema (`profiles`, `daily_photos`, `submissions`, `votes`) + RLS; anonymous auth on first load; `scripts/prepare-master` run manually so the first test photo is already v1-canonical (master16 + variants + manifest, §6.2.1); upload that one test photo |
 | **1 — Editor** (wk 1–2) | WebGL2 slider editor (~10 params) + versioned settings schema; **Level 0 shader hygiene + 16-bit source path** (PNG16 decode via UPNG.js → RGBA16F, in-shader sRGB, dither, §6.2.1) + the **mobile spike** on a cheap phone (§10); 5-min timer + auto-submit; submit inserts settings JSON; UNIQUE locks resubmits |
-| **2 — Gallery + Voting → ✅ SHIPPABLE MVP** (wk 2–3) | Per-user commit-reveal gallery re-rendering all edits client-side; inspect-exact-settings; likes (one-per-user) + denormalized count + daily leaderboard; Turnstile on sign-in + basic rate limits |
+| **2 — Gallery + Voting → 🎯 SHIPPABLE-MVP boundary** (wk 2–3) | Per-user commit-reveal gallery re-rendering all edits client-side; inspect-exact-settings; likes (one-per-user) + denormalized count + daily leaderboard; Turnstile on sign-in + basic rate limits |
 | **3 — Photo automation** (wk 3–4) | Pexels integration + admin curation UI; **preprocessing pipeline in a GitHub Actions scheduled workflow** (wraps `scripts/prepare-master`, §6.2.1/§6.8) with the **clipping-rejection curation gate**; daily pre-stage (N+1 days ahead); `pg_cron` keep-alive ping |
 | **4 — Google upgrade + history** | `linkIdentity` flow; "my history"; anon→Google id preservation + already-linked edge case |
 | **5 — AI players** (fast-follow; pull earlier if needed for cold-start) | Daily Edge Function → each model emits settings via shared schema → validated through the same submit validator → inserted with `ai_model` = model id; `ai_players` registry |
 | **6 — Friends + polish** | `friendships` + requests/accept (Google users); friends-only leaderboard; cached thumbnails *only if* perf needs; moderation/report tooling; cost review |
+
+**Current status (local mode).** Phases 0–1 and the *client half* of Phase 2 are built and working against the `LocalAdapter` (seeded gallery, commit-reveal, inspect-exact-settings, likes, share receipt) — see [`CLAUDE.md`](CLAUDE.md). The **server-authority half of Phase 2 is not built**: no live Supabase project, no submit-validator Edge Function (invariant #3 is enforced client-side only today), no Turnstile / rate limits, and the leaderboard shows an honest `#rank of total` placement rather than the eventual percentile. So Phase 2 is **local-prototype-complete, server-pending** — not yet a publicly shippable MVP. The 🎯 marks the MVP *boundary*, not completion.
 
 ---
 

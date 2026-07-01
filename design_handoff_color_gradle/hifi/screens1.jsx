@@ -36,7 +36,7 @@ function Landing({ src, setSrc, go, device, day = 128, theme = "Golden Hour Stre
                 <div className="row" style={{ gap: 14, alignItems: "center" }}>
                   <PH tone={tone} src={src} radius="var(--r-sm)" style={{ width: 72, height: 90, flex: "0 0 auto" }} />
                   <div className="col" style={{ gap: 5 }}>
-                    <span className="row" style={{ gap: 8 }}><span className="badge accent">✓ Played</span><span style={{ fontWeight: 600 }}>Top 8% today</span></span>
+                    <span className="row" style={{ gap: 8 }}><span className="badge accent">✓ Played</span><span style={{ fontWeight: 600 }}>#3 of 9</span></span>
                     <span className="mono dim" style={{ fontSize: 13 }}>23 ♥ · ranked by likes</span>
                     <span className="mono dim3" style={{ fontSize: 12 }}>Next photo in 06:14:22</span>
                   </div>
@@ -86,7 +86,7 @@ function Landing({ src, setSrc, go, device, day = 128, theme = "Golden Hour Stre
               <div className="row" style={{ gap: 11, alignItems: "center" }}>
                 <PH tone={tone} src={src} radius="8px" style={{ width: 46, height: 58, flex: "0 0 auto" }} />
                 <div className="col" style={{ gap: 3 }}>
-                  <span className="row" style={{ gap: 7 }}><span className="badge accent">✓ Played</span><span style={{ color: "#fff", fontWeight: 600, fontSize: 14, whiteSpace: "nowrap" }}>Top 8%</span></span>
+                  <span className="row" style={{ gap: 7 }}><span className="badge accent">✓ Played</span><span style={{ color: "#fff", fontWeight: 600, fontSize: 14, whiteSpace: "nowrap" }}>#3 of 9</span></span>
                   <span className="mono" style={{ fontSize: 11.5, color: "#d8d1c3", whiteSpace: "nowrap" }}>23 ♥ · next in 06:14:22</span>
                 </div>
               </div>

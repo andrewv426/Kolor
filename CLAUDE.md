@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status: Phase 0–1 built (local mode)
 
-The Next.js app exists and the full daily loop works **in local mode** (no Supabase keys needed — `localStorage` adapter + seeded gallery). The Supabase path is fully coded but inert until real keys land in `.env.local`. Read the doc map below before doing anything substantive.
+The Next.js app exists and the full daily loop works **in local mode** (no Supabase keys needed — `localStorage` adapter + seeded gallery). The Supabase path is fully coded but inert until real keys land in `.env.local`. **Phase 2's server-authority half is not built yet** — no live Supabase project, no submit-validator Edge Function (invariant #3 is enforced client-side only today), no Turnstile / rate limits, and the leaderboard shows an honest `#rank of total` placement, not a real percentile — so Phase 2 is a local prototype, not yet a publicly shippable MVP (PRD §11). Read the doc map below before doing anything substantive.
 
 **Commands** (repo root): `npm run dev` (app at localhost:3000), `npm run build`, `npm run lint`, `npm run test:render` (node-based float16/sRGB/per-op tests for the frozen v1 engine). Copy `.env.example` → `.env.local` with real Supabase values to leave local mode; see `lib/data/README.md` for migrations + dashboard setup.
 
